@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Yan Zhenjie.
+ * Copyright 2018 Zhenjie Yan.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 package com.yanzhenjie.andserver.http.multipart;
 
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 import com.yanzhenjie.andserver.http.RequestBody;
 import com.yanzhenjie.andserver.util.MediaType;
@@ -26,7 +26,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * Created by YanZhenjie on 2018/8/9.
+ * Created by Zhenjie Yan on 2018/8/9.
  */
 public class BodyContext implements UploadContext {
 

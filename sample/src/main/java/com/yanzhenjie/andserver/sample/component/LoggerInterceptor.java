@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Yan Zhenjie.
+ * Copyright 2018 Zhenjie Yan.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,6 @@
  */
 package com.yanzhenjie.andserver.sample.component;
 
-import android.support.annotation.NonNull;
-
 import com.yanzhenjie.andserver.annotation.Interceptor;
 import com.yanzhenjie.andserver.framework.HandlerInterceptor;
 import com.yanzhenjie.andserver.framework.handler.RequestHandler;
@@ -27,8 +25,10 @@ import com.yanzhenjie.andserver.sample.util.JsonUtils;
 import com.yanzhenjie.andserver.sample.util.Logger;
 import com.yanzhenjie.andserver.util.MultiValueMap;
 
+import androidx.annotation.NonNull;
+
 /**
- * Created by YanZhenjie on 2018/9/11.
+ * Created by Zhenjie Yan on 2018/9/11.
  */
 @Interceptor
 public class LoggerInterceptor implements HandlerInterceptor {

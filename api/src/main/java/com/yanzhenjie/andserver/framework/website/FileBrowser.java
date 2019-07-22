@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018 YanZhenjie.
+ * Copyright © 2018 Zhenjie Yan.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
  */
 package com.yanzhenjie.andserver.framework.website;
 
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.yanzhenjie.andserver.error.NotFoundException;
 import com.yanzhenjie.andserver.framework.body.FileBody;
@@ -37,7 +37,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 /**
- * Created by YanZhenjie on 2018/9/7.
+ * Created by Zhenjie Yan on 2018/9/7.
  */
 public class FileBrowser extends BasicWebsite implements Patterns {
 

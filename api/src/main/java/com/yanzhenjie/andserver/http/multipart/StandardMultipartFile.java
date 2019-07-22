@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Yan Zhenjie.
+ * Copyright 2018 Zhenjie Yan.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
  */
 package com.yanzhenjie.andserver.http.multipart;
 
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.yanzhenjie.andserver.util.IOUtils;
 import com.yanzhenjie.andserver.util.MediaType;
@@ -31,7 +31,7 @@ import java.io.InputStream;
 import java.io.Serializable;
 
 /**
- * Created by YanZhenjie on 2018/6/21.
+ * Created by Zhenjie Yan on 2018/6/21.
  */
 public class StandardMultipartFile implements MultipartFile, Serializable {
 

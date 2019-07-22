@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Yan Zhenjie.
+ * Copyright 2018 Zhenjie Yan.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,14 +15,14 @@
  */
 package com.yanzhenjie.andserver.framework.body;
 
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 
 import com.yanzhenjie.andserver.util.MediaType;
 
 import org.json.JSONObject;
 
 /**
- * Created by YanZhenjie on 2018/8/8.
+ * Created by Zhenjie Yan on 2018/8/8.
  */
 public class JsonBody extends StringBody {
 

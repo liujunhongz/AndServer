@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018 YanZhenjie.
+ * Copyright © 2018 Zhenjie Yan.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 package com.yanzhenjie.andserver.framework.website;
 
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 import com.yanzhenjie.andserver.http.HttpRequest;
 import com.yanzhenjie.andserver.util.Assert;
@@ -25,7 +25,7 @@ import java.io.File;
 import java.io.IOException;
 
 /**
- * Created by YanZhenjie on 2018/9/6.
+ * Created by Zhenjie Yan on 2018/9/6.
  */
 public abstract class BasicWebsite extends Website {
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Yan Zhenjie.
+ * Copyright 2018 Zhenjie Yan.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,7 +49,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 
 /**
- * Created by YanZhenjie on 2018/9/11.
+ * Created by Zhenjie Yan on 2018/9/11.
  */
 @AutoService(Processor.class)
 public class ResolverProcessor extends BaseProcessor {
@@ -58,10 +58,12 @@ public class ResolverProcessor extends BaseProcessor {
     private Elements mElements;
     private Logger mLog;
 
+    private TypeName mContext;
     private TypeName mOnRegisterType;
     private TypeName mRegisterType;
 
     private TypeName mResolver;
+
     private TypeName mString;
 
     @Override
@@ -70,10 +72,12 @@ public class ResolverProcessor extends BaseProcessor {
         mElements = processingEnv.getElementUtils();
         mLog = new Logger(processingEnv.getMessager());
 
+        mContext = TypeName.get(mElements.getTypeElement(Constants.CONTEXT_TYPE).asType());
         mOnRegisterType = TypeName.get(mElements.getTypeElement(Constants.ON_REGISTER_TYPE).asType());
         mRegisterType = TypeName.get(mElements.getTypeElement(Constants.REGISTER_TYPE).asType());
 
         mResolver = TypeName.get(mElements.getTypeElement(Constants.RESOLVER_TYPE).asType());
+
         mString = TypeName.get(String.class);
     }
 
@@ -100,8 +104,7 @@ public class ResolverProcessor extends BaseProcessor {
 
                 List<? extends TypeMirror> interfaces = typeElement.getInterfaces();
                 if (CollectionUtils.isEmpty(interfaces)) {
-                    mLog.w(String.format(
-                        "The annotation Resolver must be used in a subclass of [ExceptionResolver] on %s.",
+                    mLog.w(String.format("The annotation Resolver must be used in a subclass of [ExceptionResolver] on %s.",
                         typeElement.getQualifiedName()));
                     continue;
                 }
@@ -110,8 +113,7 @@ public class ResolverProcessor extends BaseProcessor {
                         resolverMap.put(getGroup(typeElement), typeElement);
                         break;
                     } else {
-                        mLog.w(String.format(
-                            "The annotation Resolver must be used in a subclass of [ExceptionResolver] on %s.",
+                        mLog.w(String.format("The annotation Resolver must be used in a subclass of [ExceptionResolver] on %s.",
                             typeElement.getQualifiedName()));
                     }
                 }
@@ -140,6 +142,7 @@ public class ResolverProcessor extends BaseProcessor {
         MethodSpec registerMethod = MethodSpec.methodBuilder("onRegister")
             .addAnnotation(Override.class)
             .addModifiers(Modifier.PUBLIC)
+            .addParameter(mContext, "context")
             .addParameter(mString, "group")
             .addParameter(mRegisterType, "register")
             .addStatement("$T resolver = mMap.get(group)", mResolver)

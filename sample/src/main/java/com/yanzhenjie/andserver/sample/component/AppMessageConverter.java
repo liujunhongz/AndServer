@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Yan Zhenjie.
+ * Copyright 2018 Zhenjie Yan.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,6 @@
  */
 package com.yanzhenjie.andserver.sample.component;
 
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-
 import com.yanzhenjie.andserver.annotation.Converter;
 import com.yanzhenjie.andserver.framework.MessageConverter;
 import com.yanzhenjie.andserver.framework.body.JsonBody;
@@ -31,8 +28,11 @@ import java.io.InputStream;
 import java.lang.reflect.Type;
 import java.nio.charset.Charset;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 /**
- * Created by YanZhenjie on 2018/9/11.
+ * Created by Zhenjie Yan on 2018/9/11.
  */
 @Converter
 public class AppMessageConverter implements MessageConverter {

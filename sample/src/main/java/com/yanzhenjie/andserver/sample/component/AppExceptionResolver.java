@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Yan Zhenjie.
+ * Copyright 2018 Zhenjie Yan.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,6 @@
  */
 package com.yanzhenjie.andserver.sample.component;
 
-import android.support.annotation.NonNull;
-
 import com.yanzhenjie.andserver.annotation.Resolver;
 import com.yanzhenjie.andserver.error.BasicException;
 import com.yanzhenjie.andserver.framework.ExceptionResolver;
@@ -26,8 +24,10 @@ import com.yanzhenjie.andserver.http.HttpResponse;
 import com.yanzhenjie.andserver.sample.util.JsonUtils;
 import com.yanzhenjie.andserver.util.StatusCode;
 
+import androidx.annotation.NonNull;
+
 /**
- * Created by YanZhenjie on 2018/9/11.
+ * Created by Zhenjie Yan on 2018/9/11.
  */
 @Resolver
 public class AppExceptionResolver implements ExceptionResolver {

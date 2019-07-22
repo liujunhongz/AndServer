@@ -9,10 +9,15 @@ android {
         targetSdkVersion rootProject.ext.android.libraryTargetSdkVersion
         consumerProguardFiles 'proguard-rules.txt'
     }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
 }
 
 dependencies {
-    api rootProject.ext.dependencies.andserverAnnotation
+    api project(':annotation')
 
     implementation rootProject.ext.dependencies.httpcore
     implementation rootProject.ext.dependencies.fileupload

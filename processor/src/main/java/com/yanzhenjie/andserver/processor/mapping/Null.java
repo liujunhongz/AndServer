@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Yan Zhenjie.
+ * Copyright 2018 Zhenjie Yan.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,19 @@
 package com.yanzhenjie.andserver.processor.mapping;
 
 /**
- * Created by YanZhenjie on 2018/9/17.
+ * Created by Zhenjie Yan on 2018/9/17.
  */
 public class Null implements Mapping {
+
+    private boolean isRest;
+
+    public Null() {
+        this(false);
+    }
+
+    public Null(boolean isRest) {
+        this.isRest = isRest;
+    }
 
     @Override
     public String[] value() {
@@ -57,6 +67,6 @@ public class Null implements Mapping {
 
     @Override
     public boolean isRest() {
-        return false;
+        return isRest;
     }
 }

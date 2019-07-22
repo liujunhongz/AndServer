@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Yan Zhenjie.
+ * Copyright 2018 Zhenjie Yan.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
  */
 package com.yanzhenjie.andserver.http.session;
 
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.yanzhenjie.andserver.util.Assert;
 import com.yanzhenjie.andserver.util.StringUtils;
@@ -32,7 +32,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Created by YanZhenjie on 2018/7/26.
+ * Created by Zhenjie Yan on 2018/7/26.
  */
 public class StandardSession implements Session {
 

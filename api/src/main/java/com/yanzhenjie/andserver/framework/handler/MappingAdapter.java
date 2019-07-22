@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Yan Zhenjie.
+ * Copyright 2018 Zhenjie Yan.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,13 +15,9 @@
  */
 package com.yanzhenjie.andserver.framework.handler;
 
-import android.support.annotation.NonNull;
-
-import com.yanzhenjie.andserver.error.ContentNotAcceptableException;
-import com.yanzhenjie.andserver.error.ContentNotSupportedException;
-import com.yanzhenjie.andserver.error.HeaderValidateException;
-import com.yanzhenjie.andserver.error.MethodNotSupportException;
-import com.yanzhenjie.andserver.error.ParamValidateException;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import com.yanzhenjie.andserver.error.*;
 import com.yanzhenjie.andserver.http.HttpContext;
 import com.yanzhenjie.andserver.http.HttpMethod;
 import com.yanzhenjie.andserver.http.HttpRequest;
@@ -38,18 +34,27 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Created by YanZhenjie on 2018/9/8.
+ * Created by Zhenjie Yan on 2018/9/8.
  */
 public abstract class MappingAdapter implements HandlerAdapter, Patterns {
 
     @Override
     public boolean intercept(@NonNull HttpRequest request) {
-        String httpPath = request.getPath();
-        HttpMethod httpMethod = request.getMethod();
-        List<Mapping> mappings = getMappings(httpPath);
+        List<Path.Segment> pathSegments = Path.pathToList(request.getPath());
+
+        List<Mapping> mappings = getExactMappings(pathSegments);
+        if (mappings.isEmpty()) mappings = getBlurredMappings(pathSegments);
         if (mappings.isEmpty()) return false;
 
-        Mapping mapping = validateMethod(mappings, httpMethod);
+        Mapping mapping = null;
+        HttpMethod method = request.getMethod();
+        for (Mapping child : mappings) {
+            if (child.getMethod().getRuleList().contains(method)) {
+                mapping = child;
+                break;
+            }
+        }
+        if (mapping == null) throw new MethodNotSupportException(method);
 
         Pair param = mapping.getParam();
         if (param != null) validateParams(param, request);
@@ -66,14 +71,24 @@ public abstract class MappingAdapter implements HandlerAdapter, Patterns {
         return true;
     }
 
+    @Nullable
     @Override
     public RequestHandler getHandler(@NonNull HttpRequest request) {
-        String httpPath = request.getPath();
-        HttpMethod httpMethod = request.getMethod();
-        List<Mapping> mappings = getMappings(httpPath);
-        if (mappings.isEmpty()) return null;
+        List<Path.Segment> pathSegments = Path.pathToList(request.getPath());
 
-        Mapping mapping = validateMethod(mappings, httpMethod);
+        List<Mapping> mappings = getExactMappings(pathSegments);
+        if (mappings.isEmpty()) mappings = getBlurredMappings(pathSegments);
+
+        Mapping mapping = null;
+        HttpMethod method = request.getMethod();
+        for (Mapping child : mappings) {
+            if (child.getMethod().getRuleList().contains(method)) {
+                mapping = child;
+                break;
+            }
+        }
+
+        if (mapping == null) return null;
 
         Mime mime = mapping.getProduce();
         if (mime != null) {
@@ -88,55 +103,61 @@ public abstract class MappingAdapter implements HandlerAdapter, Patterns {
             }
             request.setAttribute(HttpContext.RESPONSE_PRODUCE_TYPE, mediaType);
         }
+
         return getMappingMap().get(mapping);
     }
 
-    /**
-     * Get the mapping corresponding to the path.
-     *
-     * @param httpPath http path.
-     *
-     * @return a {@link Mapping} object, or {@code null} if the path is not mapped.
-     */
-    @NonNull
-    private List<Mapping> getMappings(String httpPath) {
-        List<Mapping> returned = new ArrayList<>();
-        List<Path.Segment> httpSegments = Path.pathToList(httpPath);
-        Map<Mapping, RequestHandler> mappings = getMappingMap();
-        for (Mapping mapping : mappings.keySet()) {
-            List<Path.Rule> paths = mapping.getPath().getRuleList();
-            for (Path.Rule path : paths) {
-                List<Path.Segment> segments = path.getSegments();
-                if (httpSegments.size() != segments.size()) continue;
+    private List<Mapping> getExactMappings(List<Path.Segment> httpSegments) {
+        List<Mapping> mappings = new ArrayList<>();
 
-                String pathStr = Path.listToPath(segments);
-                if (pathStr.equals(httpPath)) {
-                    returned.add(mapping);
-                    break; // Validate next mapping.
+        Map<Mapping, RequestHandler> mappingMap = getMappingMap();
+        for (Mapping mapping : mappingMap.keySet()) {
+            Path path = mapping.getPath();
+            List<Path.Rule> rules = path.getRuleList();
+            for (Path.Rule rule : rules) {
+                if (matchExactPath(rule.getSegments(), httpSegments)) {
+                    mappings.add(mapping);
                 }
-
-                boolean matches = true;
-                for (int i = 0; i < segments.size(); i++) {
-                    Path.Segment segment = segments.get(i);
-                    if (!segment.equals(httpSegments.get(i)) && !segment.isBlurred()) {
-                        matches = false;
-                        break;
-                    }
-                }
-                if (matches) returned.add(mapping);
             }
         }
-        return returned;
+        return mappings;
     }
 
-    private Mapping validateMethod(List<Mapping> mappings, HttpMethod httpMethod) {
-        for (Mapping mapping : mappings) {
-            List<HttpMethod> mappingMethods = mapping.getMethod().getRuleList();
-            if (mappingMethods.contains(httpMethod)) {
-                return mapping;
+    private boolean matchExactPath(List<Path.Segment> segments, List<Path.Segment> httpSegments) {
+        if (httpSegments.size() != segments.size()) return false;
+
+        if (Path.listToPath(segments).equals(Path.listToPath(httpSegments))) {
+            return true;
+        }
+        return false;
+    }
+
+    private List<Mapping> getBlurredMappings(List<Path.Segment> httpSegments) {
+        List<Mapping> mappings = new ArrayList<>();
+
+        Map<Mapping, RequestHandler> mappingMap = getMappingMap();
+        for (Mapping mapping : mappingMap.keySet()) {
+            Path path = mapping.getPath();
+            List<Path.Rule> rules = path.getRuleList();
+            for (Path.Rule rule : rules) {
+                if (matchBlurredPath(rule.getSegments(), httpSegments)) {
+                    mappings.add(mapping);
+                }
             }
         }
-        throw new MethodNotSupportException(httpMethod);
+        return mappings;
+    }
+
+    private boolean matchBlurredPath(List<Path.Segment> segments, List<Path.Segment> httpSegments) {
+        if (httpSegments.size() != segments.size()) return false;
+
+        for (int i = 0; i < segments.size(); i++) {
+            Path.Segment segment = segments.get(i);
+            if (!segment.equals(httpSegments.get(i)) && !segment.isBlurred()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void validateParams(Pair param, HttpRequest request) {

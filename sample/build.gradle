@@ -12,6 +12,11 @@ android {
         versionName rootProject.ext.android.versionName
     }
 
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
     buildTypes {
         debug {
             debuggable true
@@ -32,8 +37,8 @@ android {
 }
 
 dependencies {
-    implementation rootProject.ext.dependencies.andserverApi
-    annotationProcessor rootProject.ext.dependencies.andserverProcessor
+    implementation project(':api')
+    annotationProcessor project(':processor')
 
     implementation rootProject.ext.dependencies.design
     implementation rootProject.ext.dependencies.appCompat

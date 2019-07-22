@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Yan Zhenjie.
+ * Copyright 2018 Zhenjie Yan.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,56 +15,16 @@
  */
 package com.yanzhenjie.andserver;
 
-import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.pm.ApplicationInfo;
-import android.support.annotation.NonNull;
 
-import com.yanzhenjie.andserver.util.Assert;
+import androidx.annotation.NonNull;
 
 /**
- * Created by YanZhenjie on 2018/6/9.
+ * Created by Zhenjie Yan on 2018/6/9.
  */
 public class AndServer {
 
     public static final String TAG = "AndServer";
-
-    @SuppressLint("StaticFieldLeak")
-    private static Context sContext;
-    private static boolean sDebug;
-
-    static void initialize(@NonNull Context context) {
-        Assert.notNull(context, "The context must not be null.");
-
-        if (sContext == null) {
-            synchronized (AndServer.class) {
-                if (sContext == null) {
-                    sContext = context.getApplicationContext();
-                    ApplicationInfo appInfo = context.getApplicationInfo();
-                    sDebug = (appInfo.flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
-                }
-            }
-        }
-    }
-
-    /**
-     * Get the context of the current application.
-     *
-     * @return {@link Context}.
-     */
-    @NonNull
-    public static Context getContext() {
-        return sContext;
-    }
-
-    /**
-     * Whether the application is in debug mode.
-     *
-     * @return true, otherwise is false.
-     */
-    public static boolean isDebug() {
-        return sDebug;
-    }
 
     /**
      * Create a Builder of Server.
@@ -72,8 +32,8 @@ public class AndServer {
      * @return {@link Server.Builder}.
      */
     @NonNull
-    public static Server.Builder serverBuilder() {
-        return Server.newBuilder();
+    public static Server.Builder serverBuilder(@NonNull Context context) {
+        return Server.newBuilder(context, "default");
     }
 
     /**
@@ -84,7 +44,7 @@ public class AndServer {
      * @return {@link Server.Builder}.
      */
     @NonNull
-    public static Server.Builder serverBuilder(@NonNull String group) {
-        return Server.newBuilder(group);
+    public static Server.Builder serverBuilder(@NonNull Context context, @NonNull String group) {
+        return Server.newBuilder(context, group);
     }
 }
