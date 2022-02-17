@@ -31,8 +31,11 @@ import java.util.StringTokenizer;
 import java.util.TimeZone;
 
 /**
- * Created by YanZhenjie on 2018/7/10.
+ * Created by Zhenjie Yan on 2018/7/10.
+ *
+ * @deprecated use apache commons-lang instead.
  */
+@Deprecated
 public abstract class StringUtils {
 
     private static final String FOLDER_SEPARATOR = "/";
@@ -161,7 +164,7 @@ public abstract class StringUtils {
      * @return true if the {@code String} is not empty and contains at least 1 whitespace character.
      */
     public static boolean containsWhitespace(String str) {
-        return containsWhitespace((CharSequence)str);
+        return containsWhitespace((CharSequence) str);
     }
 
     /**
@@ -448,7 +451,7 @@ public abstract class StringUtils {
      * @return the quoted {@code String} (e.g. "'myString'"), or the input object as-is if not a {@code String}.
      */
     public static Object quoteIfString(Object obj) {
-        return (obj instanceof String ? quote((String)obj) : obj);
+        return (obj instanceof String ? quote((String) obj) : obj);
     }
 
     /**
@@ -540,13 +543,19 @@ public abstract class StringUtils {
      * @return the extracted filename extension, or null if none.
      */
     public static String getFilenameExtension(String path) {
-        if (path == null) return null;
+        if (path == null) {
+            return null;
+        }
 
         int extIndex = path.lastIndexOf(EXTENSION_SEPARATOR);
-        if (extIndex == -1) return null;
+        if (extIndex == -1) {
+            return null;
+        }
 
         int folderIndex = path.lastIndexOf(FOLDER_SEPARATOR);
-        if (folderIndex > extIndex) return null;
+        if (folderIndex > extIndex) {
+            return null;
+        }
 
         return path.substring(extIndex + 1);
     }
@@ -559,7 +568,9 @@ public abstract class StringUtils {
      * @return the path with stripped filename extension.
      */
     public static String stripFilenameExtension(String path) {
-        if (path == null) return null;
+        if (path == null) {
+            return null;
+        }
 
         int extIndex = path.lastIndexOf(EXTENSION_SEPARATOR);
         if (extIndex == -1) {
@@ -812,7 +823,7 @@ public abstract class StringUtils {
 
         List<String> result = new ArrayList<String>();
         result.addAll(Arrays.asList(array1));
-        for (String str : array2) {
+        for (String str: array2) {
             if (!result.contains(str)) {
                 result.add(str);
             }
@@ -904,7 +915,7 @@ public abstract class StringUtils {
         }
 
         Set<String> set = new LinkedHashSet<>();
-        for (String element : array) {
+        for (String element: array) {
             set.add(element);
         }
         return toStringArray(set);
@@ -973,7 +984,7 @@ public abstract class StringUtils {
         }
 
         Properties result = new Properties();
-        for (String element : array) {
+        for (String element: array) {
             if (charsToDelete != null) {
                 element = deleteAny(element, charsToDelete);
             }
@@ -988,9 +999,11 @@ public abstract class StringUtils {
 
     /**
      * Tokenize the given {@code String} into a {@code String} array via a {@link StringTokenizer}. <p>Trims tokens and
-     * omits empty tokens. <p>The given {@code delimiters} string can consist of any number of delimiter characters.
-     * Each of those characters can be used to separate tokens. StandardCookieProcessor delimiter is always a single
-     * character; for multi-character delimiters, consider using {@link #delimitedListToStringArray}.
+     * omits empty tokens.
+     * <p>The given {@code delimiters} string can consist of any number of delimiter characters. Each of those
+     * characters
+     * can be used to separate tokens. StandardCookieProcessor delimiter is always a single character; for
+     * multi-character delimiters, consider using {@link #delimitedListToStringArray}.
      *
      * @param str the {@code String} to tokenize.
      * @param delimiters the delimiter characters, assembled as a {@code String} (each of the characters is
@@ -1026,14 +1039,14 @@ public abstract class StringUtils {
      * @see #delimitedListToStringArray
      */
     public static String[] tokenizeToStringArray(String str, String delimiters, boolean trimTokens,
-        boolean ignoreEmptyTokens) {
+                                                 boolean ignoreEmptyTokens) {
 
         if (str == null) {
             return null;
         }
 
         StringTokenizer st = new StringTokenizer(str, delimiters);
-        List<String> tokens = new ArrayList<String>();
+        List<String> tokens = new ArrayList<>();
         while (st.hasMoreTokens()) {
             String token = st.nextToken();
             if (trimTokens) {
@@ -1133,7 +1146,7 @@ public abstract class StringUtils {
     public static Set<String> commaDelimitedListToSet(String str) {
         Set<String> set = new LinkedHashSet<String>();
         String[] tokens = commaDelimitedListToStringArray(str);
-        for (String token : tokens) {
+        for (String token: tokens) {
             set.add(token);
         }
         return set;
@@ -1151,7 +1164,7 @@ public abstract class StringUtils {
      * @return the delimited {@code String}
      */
     public static String collectionToDelimitedString(Collection<?> coll, String delim, String prefix, String suffix) {
-        if (CollectionUtils.isEmpty(coll)) {
+        if (coll == null || coll.isEmpty()) {
             return "";
         }
 

@@ -19,41 +19,38 @@ import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
+import android.text.TextUtils;
 
-import com.yanzhenjie.andserver.AndServer;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 import com.yanzhenjie.andserver.error.NotFoundException;
 import com.yanzhenjie.andserver.framework.body.StreamBody;
+import com.yanzhenjie.andserver.framework.body.StringBody;
 import com.yanzhenjie.andserver.http.HttpRequest;
+import com.yanzhenjie.andserver.http.HttpResponse;
 import com.yanzhenjie.andserver.http.ResponseBody;
 import com.yanzhenjie.andserver.util.Assert;
 import com.yanzhenjie.andserver.util.DigestUtils;
+import com.yanzhenjie.andserver.util.IOUtils;
 import com.yanzhenjie.andserver.util.MediaType;
 import com.yanzhenjie.andserver.util.Patterns;
-import com.yanzhenjie.andserver.util.StringUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 
 /**
  * Created by Zhenjie Yan on 2018/9/7.
  */
 public class AssetsWebsite extends BasicWebsite implements Patterns {
 
-    private final AssetsReader mReader;
+    private final AssetsReader mAssetsReader;
     private final String mRootPath;
-    private final Map<String, String> mPatternMap;
     private final PackageInfo mPackageInfo;
-
-    private boolean isScanned;
 
     /**
      * Create a website object.
@@ -72,89 +69,99 @@ public class AssetsWebsite extends BasicWebsite implements Patterns {
      */
     public AssetsWebsite(@NonNull Context context, @NonNull String rootPath, @NonNull String indexFileName) {
         super(indexFileName);
-        Assert.isTrue(!StringUtils.isEmpty(rootPath), "The rootPath cannot be empty.");
-        Assert.isTrue(!StringUtils.isEmpty(indexFileName), "The indexFileName cannot be empty.");
+        Assert.isTrue(!TextUtils.isEmpty(rootPath), "The rootPath cannot be empty.");
+        Assert.isTrue(!TextUtils.isEmpty(indexFileName), "The indexFileName cannot be empty.");
 
         if (!rootPath.matches(PATH)) {
-            String message = String.format("The format of [%s] is wrong, it should be like [/root/project].", rootPath);
-            throw new IllegalArgumentException(message);
+            String message = "The format of [%s] is wrong, it should be like [/root/project] or [/root/project/].";
+            String format = String.format(message, rootPath);
+            throw new IllegalArgumentException(format);
         }
 
-        this.mReader = new AssetsReader(context.getAssets());
-        this.mRootPath = trimStartSlash(rootPath);
-        this.mPatternMap = new HashMap<>();
+        this.mAssetsReader = new AssetsReader(context.getAssets());
+        this.mRootPath = trimSlash(rootPath);
 
         PackageManager packageManager = context.getPackageManager();
         try {
             mPackageInfo = packageManager.getPackageInfo(context.getPackageName(), 0);
-        } catch (Exception ignored) {
-            throw new RuntimeException(ignored);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
     @Override
     public boolean intercept(@NonNull HttpRequest request) {
-        tryScanFile();
-
         String httpPath = request.getPath();
-        return mPatternMap.containsKey(httpPath);
+        InputStream stream = findPathSteam(httpPath);
+        IOUtils.closeQuietly(stream);
+        return stream != null;
     }
 
-    /**
-     * Try to scan the file, no longer scan if it has already been scanned.
-     */
-    private void tryScanFile() {
-        if (!isScanned) {
-            synchronized (AssetsWebsite.class) {
-                if (!isScanned) {
-                    List<String> fileList = mReader.scanFile(mRootPath);
-                    for (String filePath : fileList) {
-                        String httpPath = filePath.substring(mRootPath.length(), filePath.length());
-                        httpPath = addStartSlash(httpPath);
-                        mPatternMap.put(httpPath, filePath);
-
-                        String indexFileName = getIndexFileName();
-                        if (filePath.endsWith(indexFileName)) {
-                            httpPath = filePath.substring(0, filePath.indexOf(indexFileName) - 1);
-                            httpPath = addStartSlash(httpPath);
-                            mPatternMap.put(httpPath, filePath);
-                            mPatternMap.put(addEndSlash(httpPath), filePath);
-                        }
-                    }
-                    isScanned = true;
-                }
+    @Override
+    public String getETag(@NonNull HttpRequest request) throws Throwable {
+        String httpPath = request.getPath();
+        InputStream stream = findPathSteam(httpPath);
+        if (stream != null) {
+            try {
+                return DigestUtils.md5DigestAsHex(stream);
+            } finally {
+                IOUtils.closeQuietly(stream);
             }
         }
+        return null;
     }
 
     @Override
-    public String getETag(@NonNull HttpRequest request) throws IOException {
+    public long getLastModified(@NonNull HttpRequest request) throws Throwable {
         String httpPath = request.getPath();
-        String filePath = mPatternMap.get(httpPath);
-        final InputStream stream = mReader.getInputStream(filePath);
-        if (stream != null) {
-            return DigestUtils.md5DigestAsHex(stream);
-        }
-        throw new NotFoundException(httpPath);
-    }
-
-    @Override
-    public long getLastModified(@NonNull HttpRequest request) throws IOException {
-        String filePath = mPatternMap.get(request.getPath());
-        return mReader.isFile(filePath) ? mPackageInfo.lastUpdateTime : -1;
+        InputStream stream = findPathSteam(httpPath);
+        IOUtils.closeQuietly(stream);
+        return stream != null ? mPackageInfo.lastUpdateTime : -1;
     }
 
     @NonNull
     @Override
-    public ResponseBody getBody(@NonNull HttpRequest request) throws IOException {
+    public ResponseBody getBody(@NonNull HttpRequest request, @NonNull HttpResponse response) throws IOException {
         String httpPath = request.getPath();
-        String filePath = mPatternMap.get(httpPath);
-        final InputStream stream = mReader.getInputStream(filePath);
-        if (stream == null) {
-            throw new NotFoundException(httpPath);
+        String objectPath = mRootPath + httpPath;
+        InputStream stream = mAssetsReader.getInputStream(objectPath);
+        if (stream != null) {
+            MediaType mediaType = MediaType.getFileMediaType(objectPath);
+            return new StreamBody(stream, stream.available(), mediaType);
         }
-        final MediaType mediaType = MediaType.getFileMediaType(filePath);
-        return new StreamBody(stream, stream.available(), mediaType);
+
+        String indexPath = addEndSlash(objectPath) + getIndexFileName();
+        InputStream indexStream = mAssetsReader.getInputStream(indexPath);
+        if (indexStream != null) {
+            if (!httpPath.endsWith(File.separator)) {
+                IOUtils.closeQuietly(indexStream);
+                String redirectPath = addEndSlash(httpPath);
+                String query = queryString(request);
+                response.sendRedirect(redirectPath + "?" + query);
+                return new StringBody("");
+            }
+
+            final MediaType mediaType = MediaType.getFileMediaType(indexPath);
+            return new StreamBody(indexStream, indexStream.available(), mediaType);
+        }
+
+        throw new NotFoundException(httpPath);
+    }
+
+    private InputStream findPathSteam(String httpPath) {
+        String targetPath = mRootPath + httpPath;
+        InputStream targetStream = mAssetsReader.getInputStream(targetPath);
+        if (targetStream != null) {
+            return targetStream;
+        }
+
+        String indexPath = addEndSlash(targetPath) + getIndexFileName();
+        InputStream indexStream = mAssetsReader.getInputStream(indexPath);
+        if (indexStream != null) {
+            return indexStream;
+        }
+
+        return null;
     }
 
     public static class AssetsReader {
@@ -197,7 +204,13 @@ public class AssetsWebsite extends BasicWebsite implements Patterns {
          * @return true, other wise is false.
          */
         public boolean isFile(@NonNull String fileName) {
-            return getInputStream(fileName) != null;
+            InputStream stream = null;
+            try {
+                stream = getInputStream(fileName);
+                return stream != null;
+            } finally {
+                IOUtils.closeQuietly(stream);
+            }
         }
 
         /**
@@ -227,20 +240,22 @@ public class AssetsWebsite extends BasicWebsite implements Patterns {
          */
         @NonNull
         public List<String> scanFile(@NonNull String path) {
-            Assert.isTrue(!StringUtils.isEmpty(path), "The path cannot be empty.");
+            Assert.isTrue(!TextUtils.isEmpty(path), "The path cannot be empty.");
 
             List<String> pathList = new ArrayList<>();
             if (isFile(path)) {
                 pathList.add(path);
             } else {
                 List<String> files = list(path);
-                for (String file : files) {
+                for (String file: files) {
                     String realPath = path + File.separator + file;
                     if (isFile(realPath)) {
                         pathList.add(realPath);
                     } else {
                         List<String> childList = scanFile(realPath);
-                        if (childList.size() > 0) pathList.addAll(childList);
+                        if (childList.size() > 0) {
+                            pathList.addAll(childList);
+                        }
                     }
                 }
             }

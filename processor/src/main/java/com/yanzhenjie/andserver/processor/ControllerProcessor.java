@@ -15,40 +15,87 @@
  */
 package com.yanzhenjie.andserver.processor;
 
-import com.google.auto.common.MoreElements;
-import com.google.auto.service.AutoService;
-import com.squareup.javapoet.*;
-import com.yanzhenjie.andserver.annotation.*;
-import com.yanzhenjie.andserver.processor.mapping.*;
+import com.squareup.javapoet.ArrayTypeName;
+import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.CodeBlock;
+import com.squareup.javapoet.FieldSpec;
+import com.squareup.javapoet.JavaFile;
+import com.squareup.javapoet.MethodSpec;
+import com.squareup.javapoet.ParameterizedTypeName;
+import com.squareup.javapoet.TypeName;
+import com.squareup.javapoet.TypeSpec;
+import com.yanzhenjie.andserver.annotation.Addition;
+import com.yanzhenjie.andserver.annotation.AppInfo;
+import com.yanzhenjie.andserver.annotation.Controller;
+import com.yanzhenjie.andserver.annotation.CookieValue;
+import com.yanzhenjie.andserver.annotation.CrossOrigin;
+import com.yanzhenjie.andserver.annotation.DeleteMapping;
+import com.yanzhenjie.andserver.annotation.FormPart;
+import com.yanzhenjie.andserver.annotation.GetMapping;
+import com.yanzhenjie.andserver.annotation.PatchMapping;
+import com.yanzhenjie.andserver.annotation.PathVariable;
+import com.yanzhenjie.andserver.annotation.PostMapping;
+import com.yanzhenjie.andserver.annotation.PutMapping;
+import com.yanzhenjie.andserver.annotation.QueryParam;
+import com.yanzhenjie.andserver.annotation.RequestBody;
+import com.yanzhenjie.andserver.annotation.RequestHeader;
+import com.yanzhenjie.andserver.annotation.RequestMapping;
+import com.yanzhenjie.andserver.annotation.RequestParam;
+import com.yanzhenjie.andserver.annotation.ResponseBody;
+import com.yanzhenjie.andserver.annotation.RestController;
+import com.yanzhenjie.andserver.processor.cross.CrossOriginImpl;
+import com.yanzhenjie.andserver.processor.cross.MergeCrossOrigin;
+import com.yanzhenjie.andserver.processor.mapping.Any;
+import com.yanzhenjie.andserver.processor.mapping.Delete;
+import com.yanzhenjie.andserver.processor.mapping.Get;
+import com.yanzhenjie.andserver.processor.mapping.Mapping;
+import com.yanzhenjie.andserver.processor.mapping.Merge;
+import com.yanzhenjie.andserver.processor.mapping.Null;
+import com.yanzhenjie.andserver.processor.mapping.Patch;
+import com.yanzhenjie.andserver.processor.mapping.Post;
+import com.yanzhenjie.andserver.processor.mapping.Put;
 import com.yanzhenjie.andserver.processor.util.Constants;
 import com.yanzhenjie.andserver.processor.util.Logger;
 import com.yanzhenjie.andserver.processor.util.Patterns;
+
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 
-import javax.activation.MimeType;
-import javax.activation.MimeTypeParseException;
-import javax.annotation.processing.Filer;
-import javax.annotation.processing.ProcessingEnvironment;
-import javax.annotation.processing.Processor;
-import javax.annotation.processing.RoundEnvironment;
-import javax.lang.model.element.*;
-import javax.lang.model.type.TypeKind;
-import javax.lang.model.type.TypeMirror;
-import javax.lang.model.util.Elements;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
+
+import javax.activation.MimeType;
+import javax.activation.MimeTypeParseException;
+import javax.annotation.processing.Filer;
+import javax.annotation.processing.ProcessingEnvironment;
+import javax.annotation.processing.RoundEnvironment;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.PackageElement;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
 
 /**
  * Created by Zhenjie Yan on 2018/6/8.
  */
-@AutoService(Processor.class)
 public class ControllerProcessor extends BaseProcessor implements Patterns {
 
     private Filer mFiler;
@@ -56,8 +103,7 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
     private Logger mLog;
 
     private TypeName mContext;
-    private TypeName mStringUtils;
-    private TypeName mCollectionUtils;
+    private TypeName mTextUtils;
     private ClassName mTypeWrapper;
     private TypeName mMediaType;
     private TypeName mOnRegisterType;
@@ -82,6 +128,7 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
     private TypeName mMultipartRequest;
     private TypeName mResponse;
     private TypeName mHttpMethod;
+    private TypeName mHttpHeaders;
     private TypeName mSession;
     private TypeName mRequestBody;
     private TypeName mMultipartFile;
@@ -89,6 +136,7 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
     private TypeName mMultipartFileList;
 
     private TypeName mAddition;
+    private TypeName mCrossOrigin;
     private TypeName mMapping;
     private TypeName mMimeTypeMapping;
     private TypeName mMethodMapping;
@@ -108,6 +156,8 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
 
     private List<Integer> mHashCodes = new ArrayList<>();
 
+    private Pattern mBlurredPathPattern = Pattern.compile(PATH_BLURRED_INCLUDE);
+
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
@@ -116,8 +166,7 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
         mLog = new Logger(processingEnv.getMessager());
 
         mContext = TypeName.get(mElements.getTypeElement(Constants.CONTEXT_TYPE).asType());
-        mStringUtils = TypeName.get(mElements.getTypeElement(Constants.STRING_UTIL_TYPE).asType());
-        mCollectionUtils = TypeName.get(mElements.getTypeElement(Constants.COLLECTION_UTIL_TYPE).asType());
+        mTextUtils = TypeName.get(mElements.getTypeElement(Constants.TEXT_UTILS_TYPE).asType());
         mTypeWrapper = ClassName.get(mElements.getTypeElement(Constants.TYPE_WRAPPER_TYPE));
         mMediaType = TypeName.get(mElements.getTypeElement(Constants.MEDIA_TYPE).asType());
         mOnRegisterType = TypeName.get(mElements.getTypeElement(Constants.ON_REGISTER_TYPE).asType());
@@ -142,6 +191,7 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
         mMultipartRequest = TypeName.get(mElements.getTypeElement(Constants.MULTIPART_REQUEST_TYPE).asType());
         mResponse = TypeName.get(mElements.getTypeElement(Constants.RESPONSE_TYPE).asType());
         mHttpMethod = TypeName.get(mElements.getTypeElement(Constants.HTTP_METHOD_TYPE).asType());
+        mHttpHeaders = TypeName.get(mElements.getTypeElement(Constants.HTTP_HEADERS_TYPE).asType());
         mSession = TypeName.get(mElements.getTypeElement(Constants.SESSION_TYPE).asType());
         mRequestBody = TypeName.get(mElements.getTypeElement(Constants.REQUEST_BODY_TYPE).asType());
         mMultipartFile = TypeName.get(mElements.getTypeElement(Constants.MULTIPART_FILE_TYPE).asType());
@@ -149,6 +199,7 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
         mMultipartFileList = ParameterizedTypeName.get(ClassName.get(List.class), mMultipartFile);
 
         mAddition = TypeName.get(mElements.getTypeElement(Constants.ADDITION_TYPE).asType());
+        mCrossOrigin = TypeName.get(mElements.getTypeElement(Constants.CROSS_ORIGIN_TYPE).asType());
         mMapping = TypeName.get(mElements.getTypeElement(Constants.MAPPING_TYPE).asType());
         mMimeTypeMapping = TypeName.get(mElements.getTypeElement(Constants.MIME_MAPPING_TYPE).asType());
         mMethodMapping = TypeName.get(mElements.getTypeElement(Constants.METHOD_MAPPING_TYPE).asType());
@@ -159,7 +210,12 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
 
     @Override
     public boolean process(Set<? extends TypeElement> set, RoundEnvironment roundEnv) {
-        if (CollectionUtils.isEmpty(set)) return false;
+        if (CollectionUtils.isEmpty(set)) {
+            return false;
+        }
+
+        Set<? extends Element> appSet = roundEnv.getElementsAnnotatedWith(AppInfo.class);
+        String registerPackageName = getRegisterPackageName(appSet);
 
         Map<TypeElement, List<ExecutableElement>> controllers = new HashMap<>();
         findMapping(roundEnv.getElementsAnnotatedWith(RequestMapping.class), controllers);
@@ -169,29 +225,35 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
         findMapping(roundEnv.getElementsAnnotatedWith(PatchMapping.class), controllers);
         findMapping(roundEnv.getElementsAnnotatedWith(DeleteMapping.class), controllers);
 
-        if (!controllers.isEmpty()) createHandlerAdapter(controllers);
+        if (!controllers.isEmpty()) {
+            createHandlerAdapter(registerPackageName, controllers);
+        }
         return true;
     }
 
     private void findMapping(Set<? extends Element> set, Map<TypeElement, List<ExecutableElement>> controllerMap) {
-        for (Element element : set) {
+        for (Element element: set) {
             if (element instanceof ExecutableElement) {
                 ExecutableElement execute = (ExecutableElement) element;
                 Element enclosing = element.getEnclosingElement();
-                if (!(enclosing instanceof TypeElement)) continue;
+                if (!(enclosing instanceof TypeElement)) {
+                    continue;
+                }
 
                 TypeElement type = (TypeElement) enclosing;
                 Annotation restController = type.getAnnotation(RestController.class);
                 Annotation controller = type.getAnnotation(Controller.class);
                 if (restController == null && controller == null) {
-                    mLog.w(String.format("Controller/RestController annotations may be missing on %s.", type.getQualifiedName()));
+                    mLog.w(String.format("Controller/RestController annotations may be missing on %s.",
+                        type.getQualifiedName()));
                     continue;
                 }
 
                 String host = type.getQualifiedName() + "#" + execute.getSimpleName() + "()";
 
                 Set<Modifier> modifiers = execute.getModifiers();
-                Validate.isTrue(!modifiers.contains(Modifier.PRIVATE), "The modifier private is redundant on %s.", host);
+                Validate.isTrue(!modifiers.contains(Modifier.PRIVATE), "The modifier private is redundant on %s.",
+                    host);
 
                 if (modifiers.contains(Modifier.STATIC)) {
                     mLog.w(String.format("The modifier static is redundant on %s.", host));
@@ -207,20 +269,19 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
         }
     }
 
-    private void createHandlerAdapter(Map<TypeElement, List<ExecutableElement>> controllers) {
+    private void createHandlerAdapter(String registerPackageName,
+                                      Map<TypeElement, List<ExecutableElement>> controllers) {
         Map<String, List<String>> adapterMap = new HashMap<>();
-        for (Map.Entry<TypeElement, List<ExecutableElement>> entry : controllers.entrySet()) {
+        for (Map.Entry<TypeElement, List<ExecutableElement>> entry: controllers.entrySet()) {
             TypeElement type = entry.getKey();
             List<ExecutableElement> executes = entry.getValue();
             mLog.i(String.format("------ Processing %s ------", type.getSimpleName()));
 
             String typeName = type.getQualifiedName().toString();
             Mapping typeMapping = getTypeMapping(type);
-            if (typeMapping != null) {
-                validateMapping(typeMapping, typeName);
-            } else {
-                typeMapping = new Null();
-            }
+            validateMapping(typeMapping, typeName);
+
+            CrossOrigin typeCrossOrigin = type.getAnnotation(CrossOrigin.class);
 
             TypeName controllerType = TypeName.get(type.asType());
             FieldSpec hostField = FieldSpec.builder(controllerType, "mHost", Modifier.PRIVATE).build();
@@ -229,7 +290,7 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
             CodeBlock.Builder rootCode = CodeBlock.builder()
                 .addStatement("this.mHost = new $T()", type)
                 .addStatement("this.mMappingMap = new $T<>()", LinkedHashMap.class);
-            for (ExecutableElement execute : executes) {
+            for (ExecutableElement execute: executes) {
                 Mapping mapping = getExecuteMapping(execute);
                 validateExecuteMapping(mapping, typeName + "#" + execute.getSimpleName().toString() + "()");
 
@@ -241,9 +302,19 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
                 rootCode.add("\n").addStatement("$T addition = new $T()", mAddition, mAddition);
                 addAddition(rootCode, addition);
 
+                CrossOrigin executeCrossOrigin = execute.getAnnotation(CrossOrigin.class);
+                if (typeCrossOrigin == null && executeCrossOrigin == null) {
+                    rootCode.add("\n").addStatement("$T crossOrigin = null", mCrossOrigin);
+                } else {
+                    rootCode.add("\n").addStatement("$T crossOrigin = new $T()", mCrossOrigin, mCrossOrigin);
+                    MergeCrossOrigin crossOrigin = new MergeCrossOrigin(new CrossOriginImpl(typeCrossOrigin),
+                        new CrossOriginImpl(executeCrossOrigin));
+                    addCrossOrigin(rootCode, crossOrigin);
+                }
+
                 String handlerName = createHandler(type, execute, mapping.path(), mapping.isRest());
-                rootCode.addStatement("$L handler = new $L(mHost, mapping, addition, $L)", handlerName, handlerName,
-                    mapping.isRest()).addStatement("mMappingMap.put(mapping, handler)").endControlFlow();
+                rootCode.addStatement("$L handler = new $L(mHost, mapping, addition, crossOrigin)", handlerName,
+                    handlerName).addStatement("mMappingMap.put(mapping, handler)").endControlFlow();
             }
             MethodSpec rootMethod = MethodSpec.constructorBuilder()
                 .addModifiers(Modifier.PUBLIC)
@@ -264,7 +335,7 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
                 .addStatement("return mHost")
                 .build();
 
-            String packageName = MoreElements.getPackage(type).getQualifiedName().toString();
+            String adapterPackageName = getPackageName(type).getQualifiedName().toString();
             String className = String.format("%sAdapter", type.getSimpleName());
             TypeSpec adapterClass = TypeSpec.classBuilder(className)
                 .addJavadoc(Constants.DOC_EDIT_WARN)
@@ -277,7 +348,7 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
                 .addMethod(hostMethod)
                 .build();
 
-            JavaFile javaFile = JavaFile.builder(packageName, adapterClass).build();
+            JavaFile javaFile = JavaFile.builder(adapterPackageName, adapterClass).build();
             try {
                 javaFile.writeTo(mFiler);
             } catch (IOException e) {
@@ -290,38 +361,52 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
                 adapterList = new ArrayList<>();
                 adapterMap.put(group, adapterList);
             }
-            adapterList.add(packageName + "." + className);
+            adapterList.add(adapterPackageName + "." + className);
         }
 
-        if (!adapterMap.isEmpty()) createRegister(adapterMap);
+        if (!adapterMap.isEmpty()) {
+            createRegister(registerPackageName, adapterMap);
+        }
     }
 
     private Mapping getTypeMapping(TypeElement type) {
         Mapping mapping = null;
-        boolean isRest = type.getAnnotation(ResponseBody.class) != null;
-        isRest = isRest || type.getAnnotation(RestController.class) != null;
+        boolean isRest = type.getAnnotation(ResponseBody.class) != null
+            || type.getAnnotation(RestController.class) != null;
         RequestMapping requestMapping = type.getAnnotation(RequestMapping.class);
-        if (requestMapping != null) mapping = new Any(requestMapping, isRest);
+        if (requestMapping != null) {
+            mapping = new Any(requestMapping, isRest);
+        }
 
         if (mapping == null) {
             GetMapping getMapping = type.getAnnotation(GetMapping.class);
-            if (getMapping != null) mapping = new Get(getMapping, isRest);
+            if (getMapping != null) {
+                mapping = new Get(getMapping, isRest);
+            }
         }
         if (mapping == null) {
             PostMapping postMapping = type.getAnnotation(PostMapping.class);
-            if (postMapping != null) mapping = new Post(postMapping, isRest);
+            if (postMapping != null) {
+                mapping = new Post(postMapping, isRest);
+            }
         }
         if (mapping == null) {
             PutMapping putMapping = type.getAnnotation(PutMapping.class);
-            if (putMapping != null) mapping = new Put(putMapping, isRest);
+            if (putMapping != null) {
+                mapping = new Put(putMapping, isRest);
+            }
         }
         if (mapping == null) {
             PatchMapping patchMapping = type.getAnnotation(PatchMapping.class);
-            if (patchMapping != null) mapping = new Patch(patchMapping, isRest);
+            if (patchMapping != null) {
+                mapping = new Patch(patchMapping, isRest);
+            }
         }
         if (mapping == null) {
             DeleteMapping deleteMapping = type.getAnnotation(DeleteMapping.class);
-            if (deleteMapping != null) mapping = new Delete(deleteMapping, isRest);
+            if (deleteMapping != null) {
+                mapping = new Delete(deleteMapping, isRest);
+            }
         }
         if (mapping == null) {
             mapping = new Null(isRest);
@@ -335,16 +420,15 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
             paths = mapping.value();
         }
         if (ArrayUtils.isNotEmpty(paths)) {
-            for (String path : paths) {
-                boolean valid = path.matches(PATH_BLURRED);
-                valid = valid || path.matches(PATH);
+            for (String path: paths) {
+                boolean valid = path.matches(PATH_STRICT) || path.matches(PATH_BLURRED_MAYBE);
                 Validate.isTrue(valid, "The format of path [%s] is wrong on %s.", path, host);
             }
         }
 
         String[] params = mapping.params();
         if (ArrayUtils.isNotEmpty(params)) {
-            for (String param : params) {
+            for (String param: params) {
                 boolean valid = param.matches(PAIR_KEY);
                 valid = valid || param.matches(PAIR_KEY_VALUE);
                 valid = valid || param.matches(PAIR_NO_KEY);
@@ -355,7 +439,7 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
 
         String[] headers = mapping.headers();
         if (ArrayUtils.isNotEmpty(headers)) {
-            for (String head : headers) {
+            for (String head: headers) {
                 boolean valid = head.matches(PAIR_KEY);
                 valid = valid || head.matches(PAIR_KEY_VALUE);
                 valid = valid || head.matches(PAIR_NO_KEY);
@@ -366,7 +450,7 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
 
         String[] consumes = mapping.consumes();
         if (ArrayUtils.isNotEmpty(consumes)) {
-            for (String consume : consumes) {
+            for (String consume: consumes) {
                 try {
                     new MimeType(consume);
                 } catch (MimeTypeParseException e) {
@@ -378,7 +462,7 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
 
         String[] produces = mapping.produces();
         if (ArrayUtils.isNotEmpty(produces)) {
-            for (String produce : produces) {
+            for (String produce: produces) {
                 try {
                     new MimeType(produce);
                 } catch (MimeTypeParseException e) {
@@ -393,27 +477,39 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
         Mapping mapping = null;
         RequestMapping requestMapping = execute.getAnnotation(RequestMapping.class);
         boolean isRest = execute.getAnnotation(ResponseBody.class) != null;
-        if (requestMapping != null) mapping = new Any(requestMapping, isRest);
+        if (requestMapping != null) {
+            mapping = new Any(requestMapping, isRest);
+        }
 
         if (mapping == null) {
             GetMapping getMapping = execute.getAnnotation(GetMapping.class);
-            if (getMapping != null) mapping = new Get(getMapping, isRest);
+            if (getMapping != null) {
+                mapping = new Get(getMapping, isRest);
+            }
         }
         if (mapping == null) {
             PostMapping postMapping = execute.getAnnotation(PostMapping.class);
-            if (postMapping != null) mapping = new Post(postMapping, isRest);
+            if (postMapping != null) {
+                mapping = new Post(postMapping, isRest);
+            }
         }
         if (mapping == null) {
             PutMapping putMapping = execute.getAnnotation(PutMapping.class);
-            if (putMapping != null) mapping = new Put(putMapping, isRest);
+            if (putMapping != null) {
+                mapping = new Put(putMapping, isRest);
+            }
         }
         if (mapping == null) {
             PatchMapping patchMapping = execute.getAnnotation(PatchMapping.class);
-            if (patchMapping != null) mapping = new Patch(patchMapping, isRest);
+            if (patchMapping != null) {
+                mapping = new Patch(patchMapping, isRest);
+            }
         }
         if (mapping == null) {
             DeleteMapping deleteMapping = execute.getAnnotation(DeleteMapping.class);
-            if (deleteMapping != null) mapping = new Delete(deleteMapping, isRest);
+            if (deleteMapping != null) {
+                mapping = new Delete(deleteMapping, isRest);
+            }
         }
         return mapping;
     }
@@ -430,14 +526,14 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
     private void addMapping(CodeBlock.Builder builder, Mapping mapping) {
         String[] pathArray = mapping.path();
         builder.add("\n").addStatement("$T path = new $T()", mPathMapping, mPathMapping);
-        for (String path : pathArray) {
+        for (String path: pathArray) {
             builder.addStatement("path.addRule($S)", path);
         }
         builder.addStatement("mapping.setPath(path)");
 
         String[] methodArray = mapping.method();
         builder.add("\n").addStatement("$T method = new $T()", mMethodMapping, mMethodMapping);
-        for (String method : methodArray) {
+        for (String method: methodArray) {
             builder.addStatement("method.addRule($S)", method);
         }
         builder.addStatement("mapping.setMethod(method)");
@@ -445,7 +541,7 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
         String[] paramArray = mapping.params();
         if (ArrayUtils.isNotEmpty(paramArray)) {
             builder.add("\n").addStatement("$T param = new $T()", mPairMapping, mPairMapping);
-            for (String param : paramArray) {
+            for (String param: paramArray) {
                 builder.addStatement("param.addRule($S)", param);
             }
             builder.addStatement("mapping.setParam(param)");
@@ -454,7 +550,7 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
         String[] headerArray = mapping.headers();
         if (ArrayUtils.isNotEmpty(headerArray)) {
             builder.add("\n").addStatement("$T header = new $T()", mPairMapping, mPairMapping);
-            for (String header : headerArray) {
+            for (String header: headerArray) {
                 builder.addStatement("header.addRule($S)", header);
             }
             builder.addStatement("mapping.setHeader(header)");
@@ -463,7 +559,7 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
         String[] consumeArray = mapping.consumes();
         if (ArrayUtils.isNotEmpty(consumeArray)) {
             builder.add("\n").addStatement("$T consume = new $T()", mMimeTypeMapping, mMimeTypeMapping);
-            for (String consume : consumeArray) {
+            for (String consume: consumeArray) {
                 builder.addStatement("consume.addRule($S)", consume);
             }
             builder.addStatement("mapping.setConsume(consume)");
@@ -472,7 +568,7 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
         String[] produceArray = mapping.produces();
         if (ArrayUtils.isNotEmpty(produceArray)) {
             builder.add("\n").addStatement("$T produce = new $T()", mMimeTypeMapping, mMimeTypeMapping);
-            for (String produce : produceArray) {
+            for (String produce: produceArray) {
                 builder.addStatement("produce.addRule($S)", produce);
             }
             builder.addStatement("mapping.setProduce(produce)");
@@ -480,118 +576,176 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
     }
 
     private void addAddition(CodeBlock.Builder builder, Addition addition) {
-        if (addition == null) return;
+        if (addition == null) {
+            return;
+        }
 
         String[] stringType = addition.stringType();
         if (ArrayUtils.isEmpty(stringType)) {
             stringType = addition.value();
         }
-        if (ArrayUtils.isNotEmpty(stringType)) {
-            StringBuilder array = new StringBuilder();
-            for (String type : stringType) {
-                if (array.length() > 0) array.append(", ");
-                array.append("\"").append(type).append("\"");
+        StringBuilder stringArray = new StringBuilder();
+        for (String type: stringType) {
+            if (stringArray.length() > 0) {
+                stringArray.append(", ");
             }
-            builder.add("\n")
-                .addStatement("String[] stringType = new String[]{$L}", array)
-                .addStatement("addition.setStringType(stringType)");
+            stringArray.append("\"").append(type).append("\"");
         }
+        builder.add("\n")
+            .addStatement("String[] stringType = new String[]{$L}", stringArray)
+            .addStatement("addition.setStringType(stringType)");
 
         boolean[] booleanType = addition.booleanType();
-        if (ArrayUtils.isNotEmpty(booleanType)) {
-            StringBuilder array = new StringBuilder();
-            for (boolean type : booleanType) {
-                if (array.length() > 0) array.append(", ");
-                array.append(type);
+        StringBuilder booleanArray = new StringBuilder();
+        for (boolean type: booleanType) {
+            if (booleanArray.length() > 0) {
+                booleanArray.append(", ");
             }
-            builder.add("\n")
-                .addStatement("boolean[] booleanType = new boolean[]{$L}", array)
-                .addStatement("addition.setBooleanType(booleanType)");
+            booleanArray.append(type);
         }
+        builder.add("\n")
+            .addStatement("boolean[] booleanType = new boolean[]{$L}", booleanArray)
+            .addStatement("addition.setBooleanType(booleanType)");
 
         int[] intType = addition.intTypeType();
-        if (ArrayUtils.isNotEmpty(intType)) {
-            StringBuilder array = new StringBuilder();
-            for (int type : intType) {
-                if (array.length() > 0) array.append(", ");
-                array.append(type);
+        StringBuilder intArray = new StringBuilder();
+        for (int type: intType) {
+            if (intArray.length() > 0) {
+                intArray.append(", ");
             }
-            builder.add("\n")
-                .addStatement("int[] intType = new int[]{$L}", array)
-                .addStatement("addition.setIntType(intType)");
+            intArray.append(type);
         }
+        builder.add("\n")
+            .addStatement("int[] intType = new int[]{$L}", intArray)
+            .addStatement("addition.setIntType(intType)");
 
         long[] longType = addition.longType();
-        if (ArrayUtils.isNotEmpty(longType)) {
-            StringBuilder array = new StringBuilder();
-            for (long type : longType) {
-                if (array.length() > 0) array.append(", ");
-                array.append(type).append("L");
+        StringBuilder longArray = new StringBuilder();
+        for (long type: longType) {
+            if (longArray.length() > 0) {
+                longArray.append(", ");
             }
-            builder.add("\n")
-                .addStatement("long[] longType = new long[]{$L}", array)
-                .addStatement("addition.setLongType(longType)");
+            longArray.append(type).append("L");
         }
+        builder.add("\n")
+            .addStatement("long[] longType = new long[]{$L}", longArray)
+            .addStatement("addition.setLongType(longType)");
 
         short[] shortType = addition.shortType();
-        if (ArrayUtils.isNotEmpty(shortType)) {
-            StringBuilder array = new StringBuilder();
-            for (short type : shortType) {
-                if (array.length() > 0) array.append(", ");
-                array.append(type);
+        StringBuilder shortArray = new StringBuilder();
+        for (short type: shortType) {
+            if (shortArray.length() > 0) {
+                shortArray.append(", ");
             }
-            builder.add("\n")
-                .addStatement("short[] shortType = new short[]{$L}", array)
-                .addStatement("addition.setShortType(shortType)");
+            shortArray.append(type);
         }
+        builder.add("\n")
+            .addStatement("short[] shortType = new short[]{$L}", shortArray)
+            .addStatement("addition.setShortType(shortType)");
 
         float[] floatType = addition.floatType();
-        if (ArrayUtils.isNotEmpty(floatType)) {
-            StringBuilder array = new StringBuilder();
-            for (float type : floatType) {
-                if (array.length() > 0) array.append(", ");
-                array.append(type).append("F");
+        StringBuilder floatArray = new StringBuilder();
+        for (float type: floatType) {
+            if (floatArray.length() > 0) {
+                floatArray.append(", ");
             }
-            builder.add("\n")
-                .addStatement("float[] floatType = new float[]{$L}", array)
-                .addStatement("addition.setFloatType(floatType)");
+            floatArray.append(type).append("F");
         }
+        builder.add("\n")
+            .addStatement("float[] floatType = new float[]{$L}", floatArray)
+            .addStatement("addition.setFloatType(floatType)");
 
         double[] doubleType = addition.doubleType();
-        if (ArrayUtils.isNotEmpty(doubleType)) {
-            StringBuilder array = new StringBuilder();
-            for (double type : doubleType) {
-                if (array.length() > 0) array.append(", ");
-                array.append(type).append("D");
+        StringBuilder doubleArray = new StringBuilder();
+        for (double type: doubleType) {
+            if (doubleArray.length() > 0) {
+                doubleArray.append(", ");
             }
-            builder.add("\n")
-                .addStatement("double[] doubleType = new double[]{$L}", array)
-                .addStatement("addition.setDoubleType(doubleType)");
+            doubleArray.append(type).append("D");
         }
+        builder.add("\n")
+            .addStatement("double[] doubleType = new double[]{$L}", doubleArray)
+            .addStatement("addition.setDoubleType(doubleType)");
 
         byte[] byteType = addition.byteType();
-        if (ArrayUtils.isNotEmpty(byteType)) {
-            StringBuilder array = new StringBuilder();
-            for (byte type : byteType) {
-                if (array.length() > 0) array.append(", ");
-                array.append(type);
+        StringBuilder byteArray = new StringBuilder();
+        for (byte type: byteType) {
+            if (byteArray.length() > 0) {
+                byteArray.append(", ");
             }
-            builder.add("\n")
-                .addStatement("byte[] byteType = new byte[]{$L}", array)
-                .addStatement("addition.setByteType(byteType)");
+            byteArray.append(type);
         }
+        builder.add("\n")
+            .addStatement("byte[] byteType = new byte[]{$L}", byteArray)
+            .addStatement("addition.setByteType(byteType)");
 
         char[] charType = addition.charType();
-        if (ArrayUtils.isNotEmpty(charType)) {
-            StringBuilder array = new StringBuilder();
-            for (char type : charType) {
-                if (array.length() > 0) array.append(", ");
-                array.append("'").append(type).append("'");
+        StringBuilder charArray = new StringBuilder();
+        for (char type: charType) {
+            if (charArray.length() > 0) {
+                charArray.append(", ");
             }
-            builder.add("\n")
-                .addStatement("char[] charType = new char[]{$L}", array)
-                .addStatement("addition.setCharType(charType)");
+            charArray.append("'").append(type).append("'");
         }
+        builder.add("\n")
+            .addStatement("char[] charType = new char[]{$L}", charArray)
+            .addStatement("addition.setCharType(charType)");
+    }
+
+    private void addCrossOrigin(CodeBlock.Builder builder, MergeCrossOrigin crossOrigin) {
+        String[] origins = crossOrigin.origins();
+        StringBuilder originsArray = new StringBuilder();
+        for (String origin: origins) {
+            if (originsArray.length() > 0) {
+                originsArray.append(", ");
+            }
+            originsArray.append("\"").append(origin).append("\"");
+        }
+        builder.add("\n")
+            .addStatement("String[] origins = new String[]{$L}", originsArray)
+            .addStatement("crossOrigin.setOrigins(origins)");
+
+        String[] allowedHeaders = crossOrigin.allowedHeaders();
+        StringBuilder allowedHeadersArray = new StringBuilder();
+        for (String header: allowedHeaders) {
+            if (allowedHeadersArray.length() > 0) {
+                allowedHeadersArray.append(", ");
+            }
+            allowedHeadersArray.append("\"").append(header).append("\"");
+        }
+        builder.add("\n")
+            .addStatement("String[] allowedHeaders = new String[]{$L}", allowedHeadersArray)
+            .addStatement("crossOrigin.setAllowedHeaders(allowedHeaders)");
+
+        String[] exposedHeaders = crossOrigin.exposedHeaders();
+        StringBuilder exposedHeadersArray = new StringBuilder();
+        for (String header: exposedHeaders) {
+            if (exposedHeadersArray.length() > 0) {
+                exposedHeadersArray.append(", ");
+            }
+            exposedHeadersArray.append("\"").append(header).append("\"");
+        }
+        builder.add("\n")
+            .addStatement("String[] exposedHeaders = new String[]{$L}", exposedHeadersArray)
+            .addStatement("crossOrigin.setExposedHeaders(exposedHeaders)");
+
+        String[] methods = crossOrigin.methods();
+        StringBuilder methodsArray = new StringBuilder();
+        for (String method: methods) {
+            if (methodsArray.length() > 0) {
+                methodsArray.append(", ");
+            }
+            methodsArray.append("HttpMethod.").append(method);
+        }
+        builder.add("\n")
+            .addStatement("$T[] methods = new $T[]{$L}", mHttpMethod, mHttpMethod, methodsArray)
+            .addStatement("crossOrigin.setMethods(methods)");
+
+        boolean allowCredentials = crossOrigin.allowCredentials();
+        builder.add("\n").addStatement("crossOrigin.setAllowCredentials($L)", allowCredentials);
+
+        long maxAge = crossOrigin.maxAge();
+        builder.addStatement("crossOrigin.setMaxAge($L)", maxAge);
     }
 
     /**
@@ -607,8 +761,8 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
             .addParameter(Object.class, "host")
             .addParameter(mMapping, "mapping")
             .addParameter(mAddition, "addition")
-            .addParameter(boolean.class, "isRest")
-            .addStatement("super(host, mapping, addition, isRest)")
+            .addParameter(mCrossOrigin, "crossOrigin")
+            .addStatement("super(host, mapping, addition, crossOrigin)")
             .addStatement("this.mHost = host")
             .build();
 
@@ -647,79 +801,108 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
 
                 TypeName typeName = TypeName.get(parameter.asType());
                 if (mContext.equals(typeName)) {
-                    if (paramBuild.length() > 0) paramBuild.append(", ");
+                    if (paramBuild.length() > 0) {
+                        paramBuild.append(", ");
+                    }
                     paramBuild.append("context");
                     continue;
                 }
 
                 if (mRequest.equals(typeName)) {
-                    if (paramBuild.length() > 0) paramBuild.append(", ");
+                    if (paramBuild.length() > 0) {
+                        paramBuild.append(", ");
+                    }
                     paramBuild.append("request");
                     continue;
                 }
 
                 if (mResponse.equals(typeName)) {
-                    if (paramBuild.length() > 0) paramBuild.append(", ");
+                    if (paramBuild.length() > 0) {
+                        paramBuild.append(", ");
+                    }
                     paramBuild.append("response");
                     continue;
                 }
 
                 if (mSession.equals(typeName)) {
                     handleCode.add("\n").addStatement("$T session$L = request.getValidSession()", mSession, i);
-                    if (paramBuild.length() > 0) paramBuild.append(", ");
+                    if (paramBuild.length() > 0) {
+                        paramBuild.append(", ");
+                    }
                     paramBuild.append(String.format("session%s", i));
                     continue;
                 }
 
                 if (mRequestBody.equals(typeName)) {
-                    if (paramBuild.length() > 0) paramBuild.append(", ");
+                    if (paramBuild.length() > 0) {
+                        paramBuild.append(", ");
+                    }
                     paramBuild.append("requestBody");
                     continue;
                 }
 
                 RequestHeader requestHeader = parameter.getAnnotation(RequestHeader.class);
                 if (requestHeader != null) {
-                    Validate.isTrue(isBasicType(typeName), "The RequestHeader annotation only supports [String, int, long, float, double, boolean] on %s.", host);
+                    Validate.isTrue(isBasicType(typeName),
+                        "The RequestHeader annotation only supports [String, int, long, float, double, boolean] on %s.",
+                        host);
 
                     String name = requestHeader.name();
-                    if (StringUtils.isEmpty(name)) name = requestHeader.value();
+                    if (StringUtils.isEmpty(name)) {
+                        name = requestHeader.value();
+                    }
                     Validate.isTrue(!StringUtils.isEmpty(name), "The name of param is null on %s.", host);
 
+                    String defaultValue = requestHeader.defaultValue();
+
                     handleCode.add("\n").addStatement("String header$LStr = request.getHeader($S)", i, name);
-                    if (requestHeader.required()) {
-                        handleCode.beginControlFlow("if ($T.isEmpty(header$LStr))", mStringUtils, i)
+                    if (requestHeader.required() && StringUtils.isEmpty(defaultValue)) {
+                        handleCode.beginControlFlow("if ($T.isEmpty(header$LStr))", mTextUtils, i)
                             .addStatement("throw new $T($S)", mHeaderMissing, name)
                             .endControlFlow();
                     } else {
-                        handleCode.beginControlFlow("if ($T.isEmpty(header$LStr))", mStringUtils, i)
-                            .addStatement("header$LStr = $S", i, requestHeader.defaultValue())
+                        handleCode.beginControlFlow("if ($T.isEmpty(header$LStr))", mTextUtils, i)
+                            .addStatement("header$LStr = $S", i, defaultValue)
                             .endControlFlow();
                     }
 
                     createBasicParameter(handleCode, typeName, "header", i);
                     assignmentBasicParameter(handleCode, typeName, "header", i);
 
-                    if (paramBuild.length() > 0) paramBuild.append(", ");
+                    if (paramBuild.length() > 0) {
+                        paramBuild.append(", ");
+                    }
                     paramBuild.append(String.format(Locale.getDefault(), "header%d", i));
                     continue;
                 }
 
                 CookieValue cookieValue = parameter.getAnnotation(CookieValue.class);
                 if (cookieValue != null) {
-                    Validate.isTrue(mString.equals(typeName), "CookieValue can only be used with [String] on %s.", host);
+                    Validate.isTrue(mString.equals(typeName),
+                        "CookieValue can only be used with [String] on %s.", host);
 
                     String name = cookieValue.name();
-                    if (StringUtils.isEmpty(name)) name = cookieValue.value();
+                    if (StringUtils.isEmpty(name)) {
+                        name = cookieValue.value();
+                    }
                     Validate.notEmpty(name, "The name of cookie is null on %s.", host);
 
+                    String defaultValue = cookieValue.defaultValue();
+
                     handleCode.add("\n").addStatement("String cookie$L = request.getCookieValue($S)", i, name);
-                    if (cookieValue.required()) {
-                        handleCode.beginControlFlow("if ($T.isEmpty(cookie$L))", mStringUtils, i)
+                    if (cookieValue.required() && StringUtils.isEmpty(defaultValue)) {
+                        handleCode.beginControlFlow("if ($T.isEmpty(cookie$L))", mTextUtils, i)
                             .addStatement("throw new $T($S)", mCookieMissing, name)
+                            .endControlFlow();
+                    } else {
+                        handleCode.beginControlFlow("if ($T.isEmpty(cookie$L))", mTextUtils, i)
+                            .addStatement("cookie$L = $S;", i, defaultValue)
                             .endControlFlow();
                     }
 
-                    if (paramBuild.length() > 0) paramBuild.append(", ");
+                    if (paramBuild.length() > 0) {
+                        paramBuild.append(", ");
+                    }
                     paramBuild.append(String.format(Locale.getDefault(), "cookie%d", i));
                     continue;
                 }
@@ -730,12 +913,16 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
                         "[String, int, long, float, double, boolean] on %s.", host);
 
                     String name = pathVariable.name();
-                    if (StringUtils.isEmpty(name)) name = pathVariable.value();
+                    if (StringUtils.isEmpty(name)) {
+                        name = pathVariable.value();
+                    }
                     Validate.isTrue(!StringUtils.isEmpty(name), "The name of path is null on %s.", host);
 
+                    String defaultValue = pathVariable.defaultValue();
+
                     boolean isBlurred = false;
-                    for (String path : paths) {
-                        if (path.matches(PATH_BLURRED) && !path.matches(PATH)) {
+                    for (String path: paths) {
+                        if (path.matches(PATH_BLURRED_MAYBE) && mBlurredPathPattern.matcher(path).find()) {
                             isBlurred = true;
                         }
                     }
@@ -744,20 +931,22 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
 
                     handleCode.add("\n").addStatement("String path$LStr = pathMap.get($S)", i, name);
 
-                    if (pathVariable.required()) {
-                        handleCode.beginControlFlow("if ($T.isEmpty(path$LStr))", mStringUtils, i)
+                    if (pathVariable.required() && StringUtils.isEmpty(defaultValue)) {
+                        handleCode.beginControlFlow("if ($T.isEmpty(path$LStr))", mTextUtils, i)
                             .addStatement("throw new $T($S)", mPathMissing, name)
                             .endControlFlow();
                     } else {
-                        handleCode.beginControlFlow("if ($T.isEmpty(path$LStr))", mStringUtils, i)
-                            .addStatement("path$LStr = $S;", i, pathVariable.defaultValue())
+                        handleCode.beginControlFlow("if ($T.isEmpty(path$LStr))", mTextUtils, i)
+                            .addStatement("path$LStr = $S;", i, defaultValue)
                             .endControlFlow();
                     }
 
                     createBasicParameter(handleCode, typeName, "path", i);
                     assignmentBasicParameter(handleCode, typeName, "path", i);
 
-                    if (paramBuild.length() > 0) paramBuild.append(", ");
+                    if (paramBuild.length() > 0) {
+                        paramBuild.append(", ");
+                    }
                     paramBuild.append(String.format(Locale.getDefault(), "path%d", i));
                     continue;
                 }
@@ -770,44 +959,48 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
                         "only supports [String, int, long, float, double, boolean] on %s.", host);
 
                     String name = queryParam.name();
-                    if (StringUtils.isEmpty(name)) name = queryParam.value();
+                    if (StringUtils.isEmpty(name)) {
+                        name = queryParam.value();
+                    }
                     Validate.isTrue(!StringUtils.isEmpty(name), "The name of param is null on %s.", host);
+
+                    String defaultValue = queryParam.defaultValue();
 
                     if (isBasicType) {
                         handleCode.add("\n").addStatement("String param$LStr = request.getQuery($S)", i, name);
-                        if (queryParam.required()) {
-                            handleCode.beginControlFlow("if ($T.isEmpty(param$LStr))", mStringUtils, i)
+                        if (queryParam.required() && StringUtils.isEmpty(defaultValue)) {
+                            handleCode.beginControlFlow("if ($T.isEmpty(param$LStr))", mTextUtils, i)
                                 .addStatement("throw new $T($S)", mParamMissing, name)
                                 .endControlFlow();
                         } else {
-                            handleCode.beginControlFlow("if ($T.isEmpty(param$LStr))", mStringUtils, i)
-                                .addStatement("param$LStr = $S", i, queryParam.defaultValue())
+                            handleCode.beginControlFlow("if ($T.isEmpty(param$LStr))", mTextUtils, i)
+                                .addStatement("param$LStr = $S", i, defaultValue)
                                 .endControlFlow();
                         }
 
                         createBasicParameter(handleCode, typeName, "param", i);
                         assignmentBasicParameter(handleCode, typeName, "param", i);
                     } else {
-                        handleCode.add("\n").addStatement("$T param$LList = request.getQueries($S)", mStringList, i, name);
-                        if (queryParam.required()) {
-                            handleCode.beginControlFlow("if ($T.isEmpty(param$LList))", mCollectionUtils, i)
+                        handleCode.add("\n")
+                            .addStatement("$T param$LList = request.getQueries($S)", mStringList, i, name);
+                        if (queryParam.required() && StringUtils.isEmpty(defaultValue)) {
+                            handleCode.beginControlFlow("if (param$LList == null || param$LList.isEmpty())", i, i)
                                 .addStatement("throw new $T($S)", mParamMissing, name)
                                 .endControlFlow();
                         } else {
-                            String defaultValue = queryParam.defaultValue();
-                            if (StringUtils.isNotEmpty(defaultValue)) {
-                                handleCode.beginControlFlow("if ($T.isEmpty(param$LList))", mCollectionUtils, i)
-                                    .addStatement("param$LList = new $T<>()", i, TypeName.get(ArrayList.class))
-                                    .addStatement("param$LList.add($S)", i, defaultValue)
-                                    .endControlFlow();
-                            }
+                            handleCode.beginControlFlow("if (param$LList = null || param$LList.isEmpty())", i, i)
+                                .addStatement("param$LList = new $T<>()", i, TypeName.get(ArrayList.class))
+                                .addStatement("param$LList.add($S)", i, defaultValue)
+                                .endControlFlow();
                         }
 
                         createBasicArrayParameter(handleCode, typeName, i);
                         assignmentBasicArrayParameter(handleCode, typeName, i);
                     }
 
-                    if (paramBuild.length() > 0) paramBuild.append(", ");
+                    if (paramBuild.length() > 0) {
+                        paramBuild.append(", ");
+                    }
                     paramBuild.append(String.format(Locale.getDefault(), "param%d", i));
                     continue;
                 }
@@ -818,13 +1011,13 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
                     boolean isBasicType = isBasicType(typeName);
                     boolean isBasicArrayType = isBasicArrayType(typeName);
 
-                    boolean valid = isFile || isBasicType || isBasicArrayType;
-                    Validate.isTrue(valid, "The RequestParam annotation only supports " +
-                        "[MultipartFile, String, int, long, float, double, boolean] on %s.", host);
-
                     String name = requestParam.name();
-                    if (StringUtils.isEmpty(name)) name = requestParam.value();
+                    if (StringUtils.isEmpty(name)) {
+                        name = requestParam.value();
+                    }
                     Validate.isTrue(!StringUtils.isEmpty(name), "The name of param is null on %s.", host);
+
+                    String defaultValue = requestParam.defaultValue();
 
                     handleCode.add("\n");
                     if (isFile) {
@@ -844,13 +1037,15 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
                                 .addStatement("param$LList = multiRequest.getFiles($S)", i, name)
                                 .endControlFlow();
                             if (requestParam.required()) {
-                                handleCode.beginControlFlow("if ($T.isEmpty(param$LList))", mCollectionUtils, i)
+                                handleCode.beginControlFlow("if (param$LList == null || param$LList.isEmpty())", i, i)
                                     .addStatement("throw new $T($S)", mParamMissing, name)
                                     .endControlFlow();
                             }
 
                             handleCode.addStatement("int param$LListSize = param$LList.size()", i, i)
-                                .addStatement("$T[] param$L = new $T[param$LListSize]", mMultipartFile, i, mMultipartFile, i)
+                                .addStatement("$T[] param$L = new $T[param$LListSize]", mMultipartFile, i,
+                                    mMultipartFile,
+                                    i)
                                 .beginControlFlow("if(param$LListSize > 0)", i)
                                 .addStatement("param$LList.toArray(param$L)", i, i)
                                 .endControlFlow();
@@ -858,39 +1053,61 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
                     } else if (isBasicType) {
                         handleCode.addStatement("String param$LStr = request.getParameter($S)", i, name);
 
-                        if (requestParam.required()) {
-                            handleCode.beginControlFlow("if ($T.isEmpty(param$LStr))", mStringUtils, i)
+                        if (requestParam.required() && StringUtils.isEmpty(defaultValue)) {
+                            handleCode.beginControlFlow("if ($T.isEmpty(param$LStr))", mTextUtils, i)
                                 .addStatement("throw new $T($S)", mParamMissing, name)
                                 .endControlFlow();
                         } else {
-                            handleCode.beginControlFlow("if ($T.isEmpty(param$LStr))", mStringUtils, i)
-                                .addStatement("param$LStr = $S", i, requestParam.defaultValue())
+                            handleCode.beginControlFlow("if ($T.isEmpty(param$LStr))", mTextUtils, i)
+                                .addStatement("param$LStr = $S", i, defaultValue)
                                 .endControlFlow();
                         }
 
                         createBasicParameter(handleCode, typeName, "param", i);
                         assignmentBasicParameter(handleCode, typeName, "param", i);
-                    } else {
+                    } else if (isBasicArrayType) {
                         handleCode.addStatement("$T param$LList = request.getParameters($S)", mStringList, i, name);
-                        if (requestParam.required()) {
-                            handleCode.beginControlFlow("if ($T.isEmpty(param$LList))", mCollectionUtils, i)
+
+                        if (requestParam.required() && StringUtils.isEmpty(defaultValue)) {
+                            handleCode.beginControlFlow("if (param$LList == null || param$LList.isEmpty())", i, i)
                                 .addStatement("throw new $T($S)", mParamMissing, name)
                                 .endControlFlow();
                         } else {
-                            String defaultValue = requestParam.defaultValue();
-                            if (StringUtils.isNotEmpty(defaultValue)) {
-                                handleCode.beginControlFlow("if ($T.isEmpty(param$LList))", mCollectionUtils, i)
-                                    .addStatement("param$LList = new $T<>()", i, TypeName.get(ArrayList.class))
-                                    .addStatement("param$LList.add($S)", i, defaultValue)
-                                    .endControlFlow();
-                            }
+                            handleCode.beginControlFlow("if (param$LList == null || param$LList.isEmpty())", i, i)
+                                .addStatement("param$LList = new $T<>()", i, TypeName.get(ArrayList.class))
+                                .addStatement("param$LList.add($S)", i, defaultValue)
+                                .endControlFlow();
                         }
 
                         createBasicArrayParameter(handleCode, typeName, i);
                         assignmentBasicArrayParameter(handleCode, typeName, i);
+                    } else {
+                        handleCode.addStatement("String param$LStr = request.getParameter($S)", i, name);
+
+                        if (requestParam.required() && StringUtils.isEmpty(defaultValue)) {
+                            handleCode.beginControlFlow("if ($T.isEmpty(param$LStr))", mTextUtils, i)
+                                .addStatement("throw new $T($S)", mParamMissing, name)
+                                .endControlFlow();
+                        } else {
+                            handleCode.beginControlFlow("if ($T.isEmpty(param$LStr))", mTextUtils, i)
+                                .addStatement("param$LStr = $S", i, requestParam.defaultValue())
+                                .endControlFlow();
+                        }
+
+                        TypeName wrapperType = ParameterizedTypeName.get(mTypeWrapper, typeName);
+                        handleCode.addStatement("$T param$L = null", typeName, i)
+                            .beginControlFlow("if (converter != null && !$T.isEmpty(param$LStr))", mTextUtils, i)
+                            .addStatement("byte[] data = param$LStr.getBytes()", i)
+                            .addStatement("$T stream = new $T(data)", InputStream.class, ByteArrayInputStream.class)
+                            .addStatement("$T mimeType = $T.TEXT_PLAIN", mMediaType, mMediaType)
+                            .addStatement("$T type = new $T(){}.getType()", Type.class, wrapperType)
+                            .addStatement("param$L = converter.convert(stream, mimeType, type)", i)
+                            .endControlFlow();
                     }
 
-                    if (paramBuild.length() > 0) paramBuild.append(", ");
+                    if (paramBuild.length() > 0) {
+                        paramBuild.append(", ");
+                    }
                     paramBuild.append(String.format(Locale.getDefault(), "param%d", i));
                     continue;
                 }
@@ -898,7 +1115,9 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
                 FormPart formPart = parameter.getAnnotation(FormPart.class);
                 if (formPart != null) {
                     String name = formPart.name();
-                    if (StringUtils.isEmpty(name)) name = formPart.value();
+                    if (StringUtils.isEmpty(name)) {
+                        name = formPart.value();
+                    }
                     Validate.isTrue(!StringUtils.isEmpty(name), "The name of param is null on %s.", host);
 
                     handleCode.add("\n");
@@ -918,21 +1137,22 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
                             .addStatement("param$LList = multiRequest.getFiles($S)", i, name)
                             .endControlFlow();
                         if (formPart.required()) {
-                            handleCode.beginControlFlow("if ($T.isEmpty(param$LList))", mCollectionUtils, i)
+                            handleCode.beginControlFlow("if (param$LList == null || param$LList.isEmpty())", i, i)
                                 .addStatement("throw new $T($S)", mParamMissing, name)
                                 .endControlFlow();
                         }
 
                         handleCode.addStatement("int param$LListSize = param$LList.size()", i, i)
-                            .addStatement("$T[] param$L = new $T[param$LListSize]", mMultipartFile, i, mMultipartFile, i)
+                            .addStatement("$T[] param$L = new $T[param$LListSize]",
+                                mMultipartFile, i, mMultipartFile, i)
                             .beginControlFlow("if(param$LListSize > 0)", i)
                             .addStatement("param$LList.toArray(param$L)", i, i)
                             .endControlFlow();
                     } else {
                         TypeName wrapperType = ParameterizedTypeName.get(mTypeWrapper, typeName);
                         handleCode.addStatement("$T param$L = null", typeName, i)
-                            .addStatement("$T param$LType = new $T(){}.getType()", Type.class, i, wrapperType)
                             .beginControlFlow("if (converter != null && multiRequest != null)")
+                            .addStatement("$T param$LType = new $T(){}.getType()", Type.class, i, wrapperType)
                             .addStatement("$T param$LFile = multiRequest.getFile($S)", mMultipartFile, i, name)
                             .beginControlFlow("if (param$LFile != null)", i)
                             .addStatement("$T stream = param$LFile.getStream()", InputStream.class, i)
@@ -941,8 +1161,9 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
                             .endControlFlow()
                             .beginControlFlow("if (param$L == null)", i)
                             .addStatement("String param$LStr = multiRequest.getParameter($S)", i, name)
-                            .beginControlFlow("if (!$T.isEmpty(param$LStr))", mStringUtils, i)
-                            .addStatement("$T stream = new $T(param$LStr.getBytes())", InputStream.class, ByteArrayInputStream.class, i)
+                            .beginControlFlow("if (!$T.isEmpty(param$LStr))", mTextUtils, i)
+                            .addStatement("byte[] data = param$LStr.getBytes()", i)
+                            .addStatement("$T stream = new $T(data)", InputStream.class, ByteArrayInputStream.class)
                             .addStatement("$T mimeType = $T.TEXT_PLAIN", mMediaType, mMediaType)
                             .addStatement("param$L = converter.convert(stream, mimeType, param$LType)", i, i)
                             .endControlFlow()
@@ -955,7 +1176,9 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
                                 .endControlFlow();
                         }
                     }
-                    if (paramBuild.length() > 0) paramBuild.append(", ");
+                    if (paramBuild.length() > 0) {
+                        paramBuild.append(", ");
+                    }
                     paramBuild.append(String.format(Locale.getDefault(), "param%d", i));
                     continue;
                 }
@@ -983,38 +1206,40 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
                             .endControlFlow();
                     }
 
-                    if (paramBuild.length() > 0) paramBuild.append(", ");
+                    if (paramBuild.length() > 0) {
+                        paramBuild.append(", ");
+                    }
                     paramBuild.append(String.format(Locale.getDefault(), "body%d", i));
                     continue;
                 }
 
-                throw new IllegalStateException(String.format("The parameter type [%s] is not supported on %s.", typeName, host));
+                throw new IllegalStateException(
+                    String.format("The parameter type [%s] is not supported on %s.", typeName, host));
             }
         }
 
         String executeName = execute.getSimpleName().toString();
         TypeMirror returnMirror = execute.getReturnType();
-        handleCode.add("\n").addStatement("Object o = null", type, executeName).beginControlFlow("try");
-        if (!TypeKind.VOID.equals(returnMirror.getKind())) {
-            handleCode.addStatement("o = (($T)mHost).$L($L)", type, executeName, paramBuild.toString());
-        } else {
+        boolean isVoid = TypeKind.VOID.equals(returnMirror.getKind());
+        if (isVoid) {
             handleCode.addStatement("(($T)mHost).$L($L)", type, executeName, paramBuild.toString());
+        } else {
+            handleCode.addStatement("Object o = (($T)mHost).$L($L)", type, executeName, paramBuild.toString());
         }
-        handleCode.endControlFlow().beginControlFlow("catch (Throwable e)").addStatement("throw e").endControlFlow();
-        handleCode.addStatement("return new $T($L, o)", mViewObject, isRest);
+        handleCode.addStatement("return new $T($L, $L)", mViewObject, isRest, isVoid ? null : "o");
 
-        MethodSpec handleMethod = MethodSpec.methodBuilder("handle")
+        MethodSpec handleMethod = MethodSpec.methodBuilder("onHandle")
             .addAnnotation(Override.class)
-            .addModifiers(Modifier.PUBLIC)
+            .addModifiers(Modifier.PROTECTED)
             .returns(mView)
             .addParameter(mRequest, "request")
             .addParameter(mResponse, "response")
-            .addException(IOException.class)
+            .addException(Throwable.class)
             .addCode(handleCode.build())
             .build();
 
 
-        String packageName = MoreElements.getPackage(type).getQualifiedName().toString();
+        String packageName = getPackageName(type).getQualifiedName().toString();
         executeName = StringUtils.capitalize(executeName);
         String className = String.format("%s%sHandler%s", type.getSimpleName(), executeName, "");
         int i = 0;
@@ -1048,12 +1273,13 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
     }
 
     private void createBasicParameter(CodeBlock.Builder builder, TypeName type, String name, int index) {
-        builder.addStatement("$T $L$L = null", type, name, index);
+        TypeName box = type.isBoxedPrimitive() ? type : type.box();
+        builder.addStatement("$T $L$L = null", box, name, index);
     }
 
     private void assignmentBasicParameter(CodeBlock.Builder builder, TypeName type, String name, int index) {
         builder.beginControlFlow("try");
-        TypeName box = type.isBoxedPrimitive() ? type.box() : type;
+        TypeName box = type.isBoxedPrimitive() ? type : type.box();
         builder.addStatement("$L$L = $T.valueOf($L$LStr)", name, index, box, name, index);
         builder.nextControlFlow("catch (Throwable e)").addStatement("throw new $T(e)", mParamError).endControlFlow();
     }
@@ -1078,19 +1304,19 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
         builder.nextControlFlow("catch (Throwable e)").addStatement("throw new $T(e)", mParamError).endControlFlow();
     }
 
-    private void createRegister(Map<String, List<String>> adapterMap) {
+    private void createRegister(String packageName, Map<String, List<String>> adapterMap) {
         TypeName listTypeName = ParameterizedTypeName.get(ClassName.get(List.class), mAdapter);
         TypeName typeName = ParameterizedTypeName.get(ClassName.get(Map.class), mString, listTypeName);
         FieldSpec mapField = FieldSpec.builder(typeName, "mMap", Modifier.PRIVATE).build();
 
         CodeBlock.Builder rootCode = CodeBlock.builder().addStatement("this.mMap = new $T<>()", HashMap.class);
-        for (Map.Entry<String, List<String>> entry : adapterMap.entrySet()) {
+        for (Map.Entry<String, List<String>> entry: adapterMap.entrySet()) {
             String group = entry.getKey();
             List<String> adapterList = entry.getValue();
 
             CodeBlock.Builder groupCode = CodeBlock.builder()
                 .addStatement("List<$T> $LList = new $T<>()", mAdapter, group, ArrayList.class);
-            for (String adapterName : adapterList) {
+            for (String adapterName: adapterList) {
                 ClassName className = ClassName.bestGuess(adapterName);
                 groupCode.addStatement("$LList.add(new $T())", group, className);
             }
@@ -1110,6 +1336,13 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
             .addParameter(mString, "group")
             .addParameter(mRegisterType, "register")
             .addStatement("List<$T> list = mMap.get(group)", mAdapter)
+            .beginControlFlow("if(list == null)")
+            .addStatement("list = new $T<>()", ArrayList.class)
+            .endControlFlow()
+            .addStatement("List<$T> defaultList = mMap.get($S)", mAdapter, "default")
+            .beginControlFlow("if(defaultList != null && !defaultList.isEmpty())")
+            .addStatement("list.addAll(defaultList)")
+            .endControlFlow()
             .beginControlFlow("if(list != null && !list.isEmpty())")
             .beginControlFlow("for ($T adapter : list)", mAdapter)
             .addStatement("register.addAdapter(adapter)")
@@ -1117,7 +1350,6 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
             .endControlFlow()
             .build();
 
-        String packageName = Constants.REGISTER_PACKAGE;
         String className = "AdapterRegister";
         TypeSpec handlerClass = TypeSpec.classBuilder(className)
             .addJavadoc(Constants.DOC_EDIT_WARN)
@@ -1148,6 +1380,13 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
         throw new IllegalStateException(String.format("The type is not a Controller: %1$s.", type));
     }
 
+    private PackageElement getPackageName(Element element) {
+        while (element.getKind() != ElementKind.PACKAGE) {
+            element = element.getEnclosingElement();
+        }
+        return (PackageElement) element;
+    }
+
     @Override
     protected void addAnnotation(Set<Class<? extends Annotation>> classSet) {
         classSet.add(RequestMapping.class);
@@ -1156,5 +1395,6 @@ public class ControllerProcessor extends BaseProcessor implements Patterns {
         classSet.add(PutMapping.class);
         classSet.add(PatchMapping.class);
         classSet.add(DeleteMapping.class);
+        classSet.add(AppInfo.class);
     }
 }

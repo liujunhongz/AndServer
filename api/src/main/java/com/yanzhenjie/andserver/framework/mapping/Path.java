@@ -13,12 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.yanzhenjie.andserver.mapping;
+package com.yanzhenjie.andserver.framework.mapping;
+
+import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
 
 import com.yanzhenjie.andserver.util.Patterns;
-import com.yanzhenjie.andserver.util.StringUtils;
 
 import java.util.Collections;
 import java.util.LinkedList;
@@ -81,9 +82,11 @@ public class Path implements Patterns {
 
         @Override
         public boolean equals(Object obj) {
-            if (!(obj instanceof Segment)) return false;
+            if (!(obj instanceof Segment)) {
+                return false;
+            }
 
-            return value.equals(((Segment)obj).value);
+            return value.equals(((Segment) obj).value);
         }
 
         @Override
@@ -95,11 +98,13 @@ public class Path implements Patterns {
     @NonNull
     public static List<Segment> pathToList(@NonNull String path) {
         List<Segment> segmentList = new LinkedList<>();
-        if (!StringUtils.isEmpty(path)) {
-            while (path.startsWith("/")) path = path.substring(1);
-            while (path.endsWith("/")) path = path.substring(0, path.length() - 1);
+        if (!TextUtils.isEmpty(path)) {
+            while (path.startsWith("/"))
+                path = path.substring(1);
+            while (path.endsWith("/"))
+                path = path.substring(0, path.length() - 1);
             String[] pathArray = path.split("/");
-            for (String segmentText : pathArray) {
+            for (String segmentText: pathArray) {
                 Segment segment = new Segment(segmentText, segmentText.contains("{"));
                 segmentList.add(segment);
             }
@@ -113,19 +118,23 @@ public class Path implements Patterns {
         if (segments.isEmpty()) {
             builder.append("/");
         }
-        for (Segment segment : segments) {
+        for (Segment segment: segments) {
             builder.append("/").append(segment.getValue());
         }
         return builder.toString();
     }
 
     public static boolean matches(@NonNull String path1, @NonNull String path2) {
-        if (path1.equals(path2)) return true;
+        if (path1.equals(path2)) {
+            return true;
+        }
 
         List<Segment> segments1 = pathToList(path1);
         List<Segment> segments2 = pathToList(path2);
 
-        if (segments1.size() != segments2.size()) return false;
+        if (segments1.size() != segments2.size()) {
+            return false;
+        }
 
         boolean matches = true;
         for (int i = 0; i < segments1.size(); i++) {

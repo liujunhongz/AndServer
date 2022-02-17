@@ -1,4 +1,4 @@
-apply plugin: rootProject.ext.plugins.javaLibrary
+apply plugin: plugin.javaLibrary
 
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_1_8
@@ -6,11 +6,11 @@ compileJava {
 }
 
 dependencies {
-    implementation project(':annotation')
+    api project(':annotation')
 
-    implementation rootProject.ext.dependencies.autoService
-    implementation rootProject.ext.dependencies.javaPoet
-    implementation rootProject.ext.dependencies.activation
-    implementation rootProject.ext.dependencies.commonsLang
-    implementation rootProject.ext.dependencies.commonsCollections
+    implementation deps.poet
+    implementation deps.apache.lang
+    implementation deps.apache.collections
 }
+
+apply from: '../bintray.gradle'

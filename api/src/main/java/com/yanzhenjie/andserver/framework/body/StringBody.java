@@ -21,7 +21,6 @@ import androidx.annotation.Nullable;
 import com.yanzhenjie.andserver.http.ResponseBody;
 import com.yanzhenjie.andserver.util.IOUtils;
 import com.yanzhenjie.andserver.util.MediaType;
-import com.yanzhenjie.andserver.util.StringUtils;
 
 import org.apache.commons.io.Charsets;
 
@@ -42,18 +41,25 @@ public class StringBody implements ResponseBody {
     }
 
     public StringBody(String body, MediaType mediaType) {
-        if (StringUtils.isEmpty(body)) {
-            throw new IllegalArgumentException("The content cannot be null or empty.");
+        if (body == null) {
+            throw new IllegalArgumentException("The content cannot be null.");
         }
 
         this.mMediaType = mediaType;
         if (mMediaType == null) {
-            mMediaType = new MediaType(MediaType.TEXT_PLAIN, Charsets.UTF_8);
+            mMediaType = new MediaType(MediaType.TEXT_PLAIN, Charsets.toCharset("utf-8"));
         }
 
         Charset charset = mMediaType.getCharset();
-        if (charset == null) charset = Charsets.UTF_8;
+        if (charset == null) {
+            charset = Charsets.toCharset("utf-8");
+        }
         this.mBody = body.getBytes(charset);
+    }
+
+    @Override
+    public boolean isRepeatable() {
+        return true;
     }
 
     @Override
@@ -66,7 +72,7 @@ public class StringBody implements ResponseBody {
     public MediaType contentType() {
         Charset charset = mMediaType.getCharset();
         if (charset == null) {
-            charset = Charsets.UTF_8;
+            charset = Charsets.toCharset("utf-8");
             return new MediaType(mMediaType.getType(), mMediaType.getSubtype(), charset);
         }
         return mMediaType;

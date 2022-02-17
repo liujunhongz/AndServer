@@ -37,12 +37,12 @@ public abstract class Website implements HandlerAdapter, ETag, LastModified {
 
     @Nullable
     @Override
-    public String getETag(@NonNull HttpRequest request) throws IOException {
+    public String getETag(@NonNull HttpRequest request) throws Throwable {
         return null;
     }
 
     @Override
-    public long getLastModified(@NonNull HttpRequest request) throws IOException {
+    public long getLastModified(@NonNull HttpRequest request) throws Throwable {
         return 0;
     }
 
@@ -52,22 +52,23 @@ public abstract class Website implements HandlerAdapter, ETag, LastModified {
         return new RequestHandler() {
             @Nullable
             @Override
-            public String getETag(@NonNull HttpRequest request) throws IOException {
+            public String getETag(@NonNull HttpRequest request) throws Throwable {
                 return Website.this.getETag(request);
             }
 
             @Override
-            public long getLastModified(@NonNull HttpRequest request) throws IOException {
+            public long getLastModified(@NonNull HttpRequest request) throws Throwable {
                 return Website.this.getLastModified(request);
             }
 
             @Override
-            public View handle(@NonNull HttpRequest request, @NonNull HttpResponse response) throws IOException {
-                return new BodyView(getBody(request));
+            public View handle(@NonNull HttpRequest request, @NonNull HttpResponse response) throws Throwable {
+                return new BodyView(getBody(request, response));
             }
         };
     }
 
     @NonNull
-    public abstract ResponseBody getBody(@NonNull HttpRequest request) throws IOException;
+    public abstract ResponseBody getBody(@NonNull HttpRequest request, @NonNull HttpResponse response)
+        throws IOException;
 }

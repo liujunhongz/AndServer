@@ -15,14 +15,17 @@
  */
 package com.yanzhenjie.andserver.framework.website;
 
+import android.text.TextUtils;
+
 import androidx.annotation.NonNull;
 
 import com.yanzhenjie.andserver.http.HttpRequest;
 import com.yanzhenjie.andserver.util.Assert;
-import com.yanzhenjie.andserver.util.StringUtils;
+import com.yanzhenjie.andserver.util.MultiValueMap;
 
 import java.io.File;
-import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Created by Zhenjie Yan on 2018/9/6.
@@ -43,17 +46,17 @@ public abstract class BasicWebsite extends Website {
      * @param indexFileName the default file name for each directory, e.g. index.html.
      */
     public BasicWebsite(@NonNull String indexFileName) {
-        Assert.isTrue(!StringUtils.isEmpty(indexFileName), "The indexFileName cannot be empty.");
+        Assert.isTrue(!TextUtils.isEmpty(indexFileName), "The indexFileName cannot be empty.");
         this.mIndexFileName = indexFileName;
     }
 
     @Override
-    public String getETag(@NonNull HttpRequest request) throws IOException {
+    public String getETag(@NonNull HttpRequest request) throws Throwable {
         return null;
     }
 
     @Override
-    public long getLastModified(@NonNull HttpRequest request) throws IOException {
+    public long getLastModified(@NonNull HttpRequest request) throws Throwable {
         return -1;
     }
 
@@ -75,7 +78,9 @@ public abstract class BasicWebsite extends Website {
      * @return rule result.
      */
     protected String addStartSlash(@NonNull String target) {
-        if (!target.startsWith(File.separator)) target = File.separator + target;
+        if (!target.startsWith(File.separator)) {
+            target = File.separator + target;
+        }
         return target;
     }
 
@@ -87,7 +92,9 @@ public abstract class BasicWebsite extends Website {
      * @return rule result.
      */
     protected String addEndSlash(@NonNull String target) {
-        if (!target.endsWith(File.separator)) target = target + File.separator;
+        if (!target.endsWith(File.separator)) {
+            target = target + File.separator;
+        }
         return target;
     }
 
@@ -99,7 +106,8 @@ public abstract class BasicWebsite extends Website {
      * @return rule result.
      */
     protected String trimStartSlash(@NonNull String target) {
-        while (target.startsWith(File.separator)) target = target.substring(1);
+        while (target.startsWith(File.separator))
+            target = target.substring(1);
         return target;
     }
 
@@ -111,7 +119,8 @@ public abstract class BasicWebsite extends Website {
      * @return rule result.
      */
     protected String trimEndSlash(@NonNull String target) {
-        while (target.endsWith(File.separator)) target = target.substring(0, target.length() - 1);
+        while (target.endsWith(File.separator))
+            target = target.substring(0, target.length() - 1);
         return target;
     }
 
@@ -126,5 +135,30 @@ public abstract class BasicWebsite extends Website {
         target = trimStartSlash(target);
         target = trimEndSlash(target);
         return target;
+    }
+
+    protected String queryString(HttpRequest request) {
+        MultiValueMap<String, String> query = request.getQuery();
+        if (query.isEmpty()) {
+            return "";
+        }
+
+        StringBuilder queryString = new StringBuilder();
+        for (Map.Entry<String, List<String>> entry: query.entrySet()) {
+            String key = entry.getKey();
+            List<String> values = entry.getValue();
+            if (values != null && !values.isEmpty()) {
+                for (int i = 0; i < values.size(); i++) {
+                    queryString.append("&")
+                        .append(key)
+                        .append("=")
+                        .append(values.get(i));
+                }
+            }
+        }
+        if (queryString.length() > 0) {
+            queryString.deleteCharAt(0);
+        }
+        return queryString.toString();
     }
 }

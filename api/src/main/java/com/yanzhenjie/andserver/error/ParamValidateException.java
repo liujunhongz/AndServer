@@ -15,12 +15,12 @@
  */
 package com.yanzhenjie.andserver.error;
 
-import com.yanzhenjie.andserver.util.StatusCode;
+import com.yanzhenjie.andserver.http.StatusCode;
 
 /**
  * Created by Zhenjie Yan on 2018/9/8.
  */
-public class ParamValidateException extends BasicException {
+public class ParamValidateException extends HttpException {
 
     public ParamValidateException(String message) {
         super(StatusCode.SC_FORBIDDEN, message);

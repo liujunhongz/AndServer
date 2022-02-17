@@ -15,6 +15,9 @@
  */
 package com.yanzhenjie.andserver.sample.component;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 import com.yanzhenjie.andserver.annotation.Converter;
 import com.yanzhenjie.andserver.framework.MessageConverter;
 import com.yanzhenjie.andserver.framework.body.JsonBody;
@@ -28,9 +31,6 @@ import java.io.InputStream;
 import java.lang.reflect.Type;
 import java.nio.charset.Charset;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-
 /**
  * Created by Zhenjie Yan on 2018/9/11.
  */
@@ -38,7 +38,7 @@ import androidx.annotation.Nullable;
 public class AppMessageConverter implements MessageConverter {
 
     @Override
-    public ResponseBody convert(@NonNull Object output, @Nullable MediaType mediaType) {
+    public ResponseBody convert(@Nullable Object output, @Nullable MediaType mediaType) {
         return new JsonBody(JsonUtils.successfulJson(output));
     }
 

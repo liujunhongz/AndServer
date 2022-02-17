@@ -30,9 +30,10 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.StringTokenizer;
 
 /**
- * Created by YanZhenjie on 2018/6/27.
+ * Created by Zhenjie Yan on 2018/6/27.
  */
 public class MediaType extends MimeType implements Serializable {
 
@@ -483,12 +484,22 @@ public class MediaType extends MimeType implements Serializable {
      * @throws InvalidMediaTypeException if the media type value cannot be parsed.
      */
     public static List<MediaType> parseMediaTypes(String mediaTypes) {
-        if (StringUtils.isEmpty(mediaTypes)) {
+        if (TextUtils.isEmpty(mediaTypes)) {
             return Collections.emptyList();
         }
-        String[] tokens = StringUtils.tokenizeToStringArray(mediaTypes, ",");
-        List<MediaType> result = new ArrayList<>(tokens.length);
-        for (String token : tokens) {
+
+        StringTokenizer st = new StringTokenizer(mediaTypes, ",");
+        List<String> tokens = new ArrayList<>();
+        while (st.hasMoreTokens()) {
+            String token = st.nextToken();
+            token = token.trim();
+            if (token.length() > 0) {
+                tokens.add(token);
+            }
+        }
+
+        List<MediaType> result = new ArrayList<>(tokens.size());
+        for (String token: tokens) {
             result.add(parseMediaType(token));
         }
         return result;
@@ -506,13 +517,13 @@ public class MediaType extends MimeType implements Serializable {
      * @throws InvalidMediaTypeException if the media type value cannot be parsed.
      */
     public static List<MediaType> parseMediaTypes(List<String> mediaTypes) {
-        if (CollectionUtils.isEmpty(mediaTypes)) {
+        if (mediaTypes == null || mediaTypes.isEmpty()) {
             return Collections.emptyList();
         } else if (mediaTypes.size() == 1) {
             return parseMediaTypes(mediaTypes.get(0));
         } else {
             List<MediaType> result = new ArrayList<>(8);
-            for (String mediaType : mediaTypes) {
+            for (String mediaType: mediaTypes) {
                 result.addAll(parseMediaTypes(mediaType));
             }
             return result;
@@ -527,10 +538,13 @@ public class MediaType extends MimeType implements Serializable {
      * {@linkplain #getType() types}, then they are considered equal and remain their current order.</li> <li>if either
      * media type has a {@linkplain #isWildcardSubtype() wildcard subtype}, then the media type without the wildcard is
      * sorted before the other.</li> <li>if the two media types have different {@linkplain #getSubtype() subtypes}, then
-     * they are considered equal and remain their current order.</li> <li>if the two media types have different
-     * {@linkplain #getQualityValue() quality value}, then the media type with the highest quality value is ordered
-     * before the other.</li> <li>if the two media types have a different amount of {@linkplain #getParameter(String)
-     * parameters}, then the media type with the most parameters is ordered before the other.</li> </ol> <p>For example:
+     * they are considered equal and remain their current order.</li>
+     * <li>if the two media types have different {@linkplain #getQualityValue() quality value}, then the media type
+     * with
+     * the highest quality value is ordered before the other.</li> <li>if the two media types have a different amount of
+     * {@linkplain #getParameter(String) parameters}, then the media type with the most parameters is ordered before the
+     * other.</li>
+     * </ol> <p>For example:
      * <blockquote>audio/basic &lt; audio/* &lt; *&#047;*</blockquote> <blockquote>audio/* &lt; audio/*;q=0.7;
      * audio/*;q=0.3</blockquote> <blockquote>audio/basic;level=1 &lt; audio/basic</blockquote> <blockquote>audio/basic
      * == text/html</blockquote> <blockquote>audio/basic == audio/wave</blockquote>
@@ -554,11 +568,13 @@ public class MediaType extends MimeType implements Serializable {
      * value}, then the media type with the highest quality value is ordered before the other.</li> <li>if either media
      * type has a {@linkplain #isWildcardType() wildcard type}, then the media type without the wildcard is ordered
      * before the other.</li> <li>if the two media types have different {@linkplain #getType() types}, then they are
-     * considered equal and remain their current order.</li> <li>if either media type has a {@linkplain
-     * #isWildcardSubtype() wildcard subtype}, then the media type without the wildcard is sorted before the other.</li>
-     * <li>if the two media types have different {@linkplain #getSubtype() subtypes}, then they are considered equal and
-     * remain their current order.</li> <li>if the two media types have a different amount of {@linkplain
-     * #getParameter(String) parameters}, then the media type with the most parameters is ordered before the other.</li>
+     * considered equal and remain their current order.</li>
+     * <li>if either media type has a {@linkplain #isWildcardSubtype() wildcard subtype}, then the media type without
+     * the wildcard is sorted before the other.</li>
+     * <li>if the two media types have different {@linkplain #getSubtype() subtypes}, then they are considered equal
+     * and remain their current order.</li> <li>if the two media types have a different amount of {@linkplain
+     * #getParameter(String) parameters}, then the media type with the most parameters is ordered before the
+     * other.</li>
      * </ol>
      *
      * @param mediaTypes the list of media types to be sorted.

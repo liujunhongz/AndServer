@@ -15,7 +15,6 @@
  */
 package com.yanzhenjie.andserver.processor;
 
-import com.google.auto.service.AutoService;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.FieldSpec;
@@ -24,6 +23,7 @@ import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
+import com.yanzhenjie.andserver.annotation.AppInfo;
 import com.yanzhenjie.andserver.annotation.Resolver;
 import com.yanzhenjie.andserver.processor.util.Constants;
 import com.yanzhenjie.andserver.processor.util.Logger;
@@ -40,7 +40,6 @@ import java.util.Set;
 
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.ProcessingEnvironment;
-import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
@@ -51,7 +50,6 @@ import javax.lang.model.util.Elements;
 /**
  * Created by Zhenjie Yan on 2018/9/11.
  */
-@AutoService(Processor.class)
 public class ResolverProcessor extends BaseProcessor {
 
     private Filer mFiler;
@@ -83,10 +81,17 @@ public class ResolverProcessor extends BaseProcessor {
 
     @Override
     public boolean process(Set<? extends TypeElement> set, RoundEnvironment roundEnv) {
-        if (CollectionUtils.isEmpty(set)) return false;
+        if (CollectionUtils.isEmpty(set)) {
+            return false;
+        }
+
+        Set<? extends Element> appSet = roundEnv.getElementsAnnotatedWith(AppInfo.class);
+        String registerPackageName = getRegisterPackageName(appSet);
 
         Map<String, TypeElement> resolverMap = findAnnotation(roundEnv);
-        if (!resolverMap.isEmpty()) createRegister(resolverMap);
+        if (!resolverMap.isEmpty()) {
+            createRegister(registerPackageName, resolverMap);
+        }
         return true;
     }
 
@@ -94,9 +99,9 @@ public class ResolverProcessor extends BaseProcessor {
         Set<? extends Element> set = roundEnv.getElementsAnnotatedWith(Resolver.class);
         Map<String, TypeElement> resolverMap = new HashMap<>();
 
-        for (Element element : set) {
+        for (Element element: set) {
             if (element instanceof TypeElement) {
-                TypeElement typeElement = (TypeElement)element;
+                TypeElement typeElement = (TypeElement) element;
 
                 Set<Modifier> modifiers = typeElement.getModifiers();
                 Validate.isTrue(modifiers.contains(Modifier.PUBLIC), "The modifier public is missing on %s.",
@@ -104,16 +109,18 @@ public class ResolverProcessor extends BaseProcessor {
 
                 List<? extends TypeMirror> interfaces = typeElement.getInterfaces();
                 if (CollectionUtils.isEmpty(interfaces)) {
-                    mLog.w(String.format("The annotation Resolver must be used in a subclass of [ExceptionResolver] on %s.",
+                    mLog.w(String.format(
+                        "The annotation Resolver must be used in a subclass of [ExceptionResolver] on %s.",
                         typeElement.getQualifiedName()));
                     continue;
                 }
-                for (TypeMirror typeMirror : interfaces) {
+                for (TypeMirror typeMirror: interfaces) {
                     if (mResolver.equals(TypeName.get(typeMirror))) {
                         resolverMap.put(getGroup(typeElement), typeElement);
                         break;
                     } else {
-                        mLog.w(String.format("The annotation Resolver must be used in a subclass of [ExceptionResolver] on %s.",
+                        mLog.w(String.format(
+                            "The annotation Resolver must be used in a subclass of [ExceptionResolver] on %s.",
                             typeElement.getQualifiedName()));
                     }
                 }
@@ -122,12 +129,12 @@ public class ResolverProcessor extends BaseProcessor {
         return resolverMap;
     }
 
-    private void createRegister(Map<String, TypeElement> resolverMap) {
+    private void createRegister(String registerPackageName, Map<String, TypeElement> resolverMap) {
         TypeName typeName = ParameterizedTypeName.get(ClassName.get(Map.class), mString, mResolver);
         FieldSpec mapField = FieldSpec.builder(typeName, "mMap", Modifier.PRIVATE).build();
 
         CodeBlock.Builder rootCode = CodeBlock.builder().addStatement("this.mMap = new $T<>()", HashMap.class);
-        for (Map.Entry<String, TypeElement> entry : resolverMap.entrySet()) {
+        for (Map.Entry<String, TypeElement> entry: resolverMap.entrySet()) {
             String group = entry.getKey();
             TypeElement resolver = entry.getValue();
             mLog.i(String.format("------ Processing %s ------", resolver.getSimpleName()));
@@ -146,12 +153,14 @@ public class ResolverProcessor extends BaseProcessor {
             .addParameter(mString, "group")
             .addParameter(mRegisterType, "register")
             .addStatement("$T resolver = mMap.get(group)", mResolver)
+            .beginControlFlow("if(resolver == null)")
+            .addStatement("resolver = mMap.get($S)", "default")
+            .endControlFlow()
             .beginControlFlow("if(resolver != null)")
             .addStatement("register.setResolver(resolver)")
             .endControlFlow()
             .build();
 
-        String packageName = Constants.REGISTER_PACKAGE;
         TypeSpec adapterClass = TypeSpec.classBuilder("ResolverRegister")
             .addJavadoc(Constants.DOC_EDIT_WARN)
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
@@ -161,7 +170,7 @@ public class ResolverProcessor extends BaseProcessor {
             .addMethod(registerMethod)
             .build();
 
-        JavaFile javaFile = JavaFile.builder(packageName, adapterClass).build();
+        JavaFile javaFile = JavaFile.builder(registerPackageName, adapterClass).build();
         try {
             javaFile.writeTo(mFiler);
         } catch (IOException e) {
@@ -181,5 +190,6 @@ public class ResolverProcessor extends BaseProcessor {
     @Override
     protected void addAnnotation(Set<Class<? extends Annotation>> classSet) {
         classSet.add(Resolver.class);
+        classSet.add(AppInfo.class);
     }
 }

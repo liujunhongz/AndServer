@@ -21,7 +21,7 @@ import java.io.Serializable;
 import java.util.Comparator;
 
 /**
- * Created by YanZhenjie on 2018/7/11.
+ * Created by Zhenjie Yan on 2018/7/11.
  */
 public class InvertibleComparator<T> implements Comparator<T>, Serializable {
 
@@ -100,7 +100,7 @@ public class InvertibleComparator<T> implements Comparator<T>, Serializable {
         if (!(obj instanceof InvertibleComparator)) {
             return false;
         }
-        InvertibleComparator<T> other = (InvertibleComparator<T>)obj;
+        InvertibleComparator<T> other = (InvertibleComparator<T>) obj;
         return (this.comparator.equals(other.comparator) && this.ascending == other.ascending);
     }
 

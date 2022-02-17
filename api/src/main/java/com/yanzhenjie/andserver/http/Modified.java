@@ -15,12 +15,10 @@
  */
 package com.yanzhenjie.andserver.http;
 
+import android.text.TextUtils;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-
-import com.yanzhenjie.andserver.util.HttpHeaders;
-import com.yanzhenjie.andserver.util.StatusCode;
-import com.yanzhenjie.andserver.util.StringUtils;
 
 import java.util.List;
 import java.util.regex.Matcher;
@@ -76,7 +74,9 @@ public class Modified implements HttpHeaders {
      * @return true if the request does not require further processing.
      */
     public boolean process(@Nullable String eTag, long lastModified) {
-        if (isNotModified) return true;
+        if (isNotModified) {
+            return true;
+        }
 
         // See https://tools.ietf.org/html/rfc7232#section-6
         if (validateIfUnmodifiedSince(lastModified)) {
@@ -89,7 +89,9 @@ public class Modified implements HttpHeaders {
         // First, prioritized.
         boolean validated = validateIfNoneMatch(eTag);
         // Second.
-        if (!validated) validateIfModifiedSince(lastModified);
+        if (!validated) {
+            validateIfModifiedSince(lastModified);
+        }
 
         // Update response
         HttpMethod method = mRequest.getMethod();
@@ -101,7 +103,7 @@ public class Modified implements HttpHeaders {
             if (lastModified > 0 && mResponse.getHeader(LAST_MODIFIED) == null) {
                 mResponse.setDateHeader(LAST_MODIFIED, lastModified);
             }
-            if (StringUtils.hasLength(eTag) && mResponse.getHeader(ETAG) == null) {
+            if (!TextUtils.isEmpty(eTag) && mResponse.getHeader(ETAG) == null) {
                 mResponse.setHeader(ETAG, padETagIfNecessary(eTag));
             }
             mResponse.setHeader(CACHE_CONTROL, "private");
@@ -110,18 +112,22 @@ public class Modified implements HttpHeaders {
     }
 
     private boolean validateIfNoneMatch(String eTag) {
-        if (!StringUtils.hasLength(eTag)) return false;
+        if (TextUtils.isEmpty(eTag)) {
+            return false;
+        }
 
         List<String> ifNoneMatch = mRequest.getHeaders(IF_NONE_MATCH);
-        if (ifNoneMatch.isEmpty()) return false;
+        if (ifNoneMatch.isEmpty()) {
+            return false;
+        }
 
         // We will perform this validation...
         eTag = padETagIfNecessary(eTag);
-        for (String clientETags : ifNoneMatch) {
+        for (String clientETags: ifNoneMatch) {
             Matcher eTagMatcher = ETAG_PATTERN.matcher(clientETags);
             // Compare weak/strong ETags as per https://tools.ietf.org/html/rfc7232#section-2.3
             while (eTagMatcher.find()) {
-                if (StringUtils.hasLength(eTagMatcher.group()) &&
+                if (!TextUtils.isEmpty(eTagMatcher.group()) &&
                     eTag.replaceFirst("^W/", "").equals(eTagMatcher.group(3))) {
                     isNotModified = true;
                     break;
@@ -132,7 +138,7 @@ public class Modified implements HttpHeaders {
     }
 
     private String padETagIfNecessary(String eTag) {
-        if (!StringUtils.hasLength(eTag)) {
+        if (TextUtils.isEmpty(eTag)) {
             return eTag;
         }
         if ((eTag.startsWith("\"") || eTag.startsWith("W/\"")) && eTag.endsWith("\"")) {
@@ -142,10 +148,14 @@ public class Modified implements HttpHeaders {
     }
 
     private boolean validateIfModifiedSince(long lastModifiedTimestamp) {
-        if (lastModifiedTimestamp < 0) return false;
+        if (lastModifiedTimestamp < 0) {
+            return false;
+        }
 
         long ifModifiedSince = parseDateHeader(IF_MODIFIED_SINCE);
-        if (ifModifiedSince == -1) return false;
+        if (ifModifiedSince == -1) {
+            return false;
+        }
 
         // We will perform this validation...
         isNotModified = ifModifiedSince >= lastModifiedTimestamp;
@@ -171,7 +181,9 @@ public class Modified implements HttpHeaders {
             dateValue = mRequest.getDateHeader(headerName);
         } catch (IllegalStateException ex) {
             String headerValue = mRequest.getHeader(headerName);
-            if (StringUtils.isEmpty(headerValue)) return -1;
+            if (TextUtils.isEmpty(headerValue)) {
+                return -1;
+            }
             // Possibly an IE 10 style value: "Wed, 09 Apr 2014 09:57:42 GMT; length=13774"
             int separatorIndex = headerValue.indexOf(';');
             if (separatorIndex != -1) {
@@ -183,7 +195,9 @@ public class Modified implements HttpHeaders {
     }
 
     private long parseDateValue(String headerValue) {
-        if (headerValue == null) return -1;
+        if (headerValue == null) {
+            return -1;
+        }
 
         if (headerValue.length() >= 3) {
             // Short "0" or "-1" like values are never valid HTTP date headers...

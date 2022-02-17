@@ -15,12 +15,28 @@
  */
 package com.yanzhenjie.andserver.processor;
 
-import com.squareup.javapoet.*;
+import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.CodeBlock;
+import com.squareup.javapoet.FieldSpec;
+import com.squareup.javapoet.JavaFile;
+import com.squareup.javapoet.MethodSpec;
+import com.squareup.javapoet.ParameterizedTypeName;
+import com.squareup.javapoet.TypeName;
+import com.squareup.javapoet.TypeSpec;
+import com.yanzhenjie.andserver.annotation.AppInfo;
 import com.yanzhenjie.andserver.annotation.Config;
 import com.yanzhenjie.andserver.processor.util.Constants;
 import com.yanzhenjie.andserver.processor.util.Logger;
+
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.Validate;
+
+import java.io.IOException;
+import java.lang.annotation.Annotation;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -30,12 +46,6 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
-import java.io.IOException;
-import java.lang.annotation.Annotation;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Created by Zhenjie Yan on 2019-06-29.
@@ -61,7 +71,6 @@ public class ConfigProcessor extends BaseProcessor {
     private Logger mLog;
 
     private TypeName mContext;
-    private TypeName mCollectionUtils;
     private TypeName mOnRegisterType;
     private TypeName mRegisterType;
 
@@ -79,7 +88,6 @@ public class ConfigProcessor extends BaseProcessor {
         mLog = new Logger(processingEnv.getMessager());
 
         mContext = TypeName.get(mElements.getTypeElement(Constants.CONTEXT_TYPE).asType());
-        mCollectionUtils = TypeName.get(mElements.getTypeElement(Constants.COLLECTION_UTIL_TYPE).asType());
         mOnRegisterType = TypeName.get(mElements.getTypeElement(Constants.ON_REGISTER_TYPE).asType());
         mRegisterType = TypeName.get(mElements.getTypeElement(Constants.REGISTER_TYPE).asType());
 
@@ -93,10 +101,15 @@ public class ConfigProcessor extends BaseProcessor {
 
     @Override
     public boolean process(Set<? extends TypeElement> set, RoundEnvironment roundEnv) {
-        if (CollectionUtils.isEmpty(set)) return false;
+        if (CollectionUtils.isEmpty(set)) {
+            return false;
+        }
+
+        Set<? extends Element> appSet = roundEnv.getElementsAnnotatedWith(AppInfo.class);
+        String registerPackageName = getRegisterPackageName(appSet);
 
         Map<String, TypeElement> configMap = findAnnotation(roundEnv);
-        createRegister(configMap);
+        createRegister(registerPackageName, configMap);
         return true;
     }
 
@@ -104,7 +117,7 @@ public class ConfigProcessor extends BaseProcessor {
         Set<? extends Element> set = roundEnv.getElementsAnnotatedWith(Config.class);
         Map<String, TypeElement> configMap = new HashMap<>();
 
-        for (Element element : set) {
+        for (Element element: set) {
             if (element instanceof TypeElement) {
                 TypeElement typeElement = (TypeElement) element;
                 Set<Modifier> modifiers = typeElement.getModifiers();
@@ -117,7 +130,7 @@ public class ConfigProcessor extends BaseProcessor {
                         typeElement.getQualifiedName()));
                     continue;
                 }
-                for (TypeMirror typeMirror : interfaces) {
+                for (TypeMirror typeMirror: interfaces) {
                     if (mConfig.equals(TypeName.get(typeMirror))) {
                         configMap.put(getGroup(typeElement), typeElement);
                         break;
@@ -131,12 +144,12 @@ public class ConfigProcessor extends BaseProcessor {
         return configMap;
     }
 
-    private void createRegister(Map<String, TypeElement> configMap) {
+    private void createRegister(String registerPackageName, Map<String, TypeElement> configMap) {
         TypeName typeName = ParameterizedTypeName.get(ClassName.get(Map.class), mString, mConfig);
         FieldSpec mapField = FieldSpec.builder(typeName, "mMap", Modifier.PRIVATE).build();
 
         CodeBlock.Builder rootCode = CodeBlock.builder().addStatement("this.mMap = new $T<>()", HashMap.class);
-        for (Map.Entry<String, TypeElement> entry : configMap.entrySet()) {
+        for (Map.Entry<String, TypeElement> entry: configMap.entrySet()) {
             String group = entry.getKey();
             TypeElement config = entry.getValue();
             mLog.i(String.format("------ Processing %s ------", config.getSimpleName()));
@@ -156,11 +169,14 @@ public class ConfigProcessor extends BaseProcessor {
             .addParameter(mString, "group")
             .addParameter(mRegisterType, "register")
             .addStatement("$T config = mMap.get(group)", mConfig)
+            .beginControlFlow("if(config == null)")
+            .addStatement("config = mMap.get($S)", "default")
+            .endControlFlow()
             .beginControlFlow("if(config != null)")
             .addStatement("$T delegate = $T.newInstance()", mDelegate, mDelegate)
             .addStatement("config.onConfig(context, delegate)")
             .addStatement("$T list = delegate.getWebsites()", listType)
-            .beginControlFlow("if(!$T.isEmpty(list))", mCollectionUtils)
+            .beginControlFlow("if(list != null && !list.isEmpty())")
             .beginControlFlow("for ($T website : list)", mWebsite)
             .addStatement("register.addAdapter(website)")
             .endControlFlow()
@@ -170,7 +186,6 @@ public class ConfigProcessor extends BaseProcessor {
             .endControlFlow()
             .build();
 
-        String packageName = Constants.REGISTER_PACKAGE;
         TypeSpec adapterClass = TypeSpec.classBuilder("ConfigRegister")
             .addJavadoc(Constants.DOC_EDIT_WARN)
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
@@ -180,7 +195,7 @@ public class ConfigProcessor extends BaseProcessor {
             .addMethod(registerMethod)
             .build();
 
-        JavaFile javaFile = JavaFile.builder(packageName, adapterClass).build();
+        JavaFile javaFile = JavaFile.builder(registerPackageName, adapterClass).build();
         try {
             javaFile.writeTo(mFiler);
         } catch (IOException e) {
@@ -199,5 +214,6 @@ public class ConfigProcessor extends BaseProcessor {
     @Override
     protected void addAnnotation(Set<Class<? extends Annotation>> classSet) {
         classSet.add(Config.class);
+        classSet.add(AppInfo.class);
     }
 }

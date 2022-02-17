@@ -15,12 +15,12 @@
  */
 package com.yanzhenjie.andserver.error;
 
-import com.yanzhenjie.andserver.util.StatusCode;
+import com.yanzhenjie.andserver.http.StatusCode;
 
 /**
  * Created by Zhenjie Yan on 2018/7/19.
  */
-public class NotFoundException extends BasicException {
+public class NotFoundException extends HttpException {
 
     private static final String MESSAGE = "The resource [%s] is not found.";
 

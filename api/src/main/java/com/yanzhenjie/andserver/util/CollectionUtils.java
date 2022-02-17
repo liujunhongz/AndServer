@@ -31,7 +31,10 @@ import java.util.Set;
 
 /**
  * Created by Zhenjie Yan on 2018/7/11.
+ *
+ * @deprecated use apache commons-collection instead.
  */
+@Deprecated
 public abstract class CollectionUtils {
 
     /**
@@ -86,8 +89,8 @@ public abstract class CollectionUtils {
             throw new IllegalArgumentException("Collection must not be null");
         }
         Object[] arr = ObjectUtils.toObjectArray(array);
-        for (Object elem : arr) {
-            collection.add((E)elem);
+        for (Object elem: arr) {
+            collection.add((E) elem);
         }
     }
 
@@ -106,13 +109,13 @@ public abstract class CollectionUtils {
         }
         if (props != null) {
             for (Enumeration<?> en = props.propertyNames(); en.hasMoreElements(); ) {
-                String key = (String)en.nextElement();
+                String key = (String) en.nextElement();
                 Object value = props.get(key);
                 if (value == null) {
                     // Allow for defaults fallback or potentially overridden accessor...
                     value = props.getProperty(key);
                 }
-                map.put((K)key, (V)value);
+                map.put((K) key, (V) value);
             }
         }
     }
@@ -169,7 +172,7 @@ public abstract class CollectionUtils {
      */
     public static boolean containsInstance(Collection<?> collection, Object element) {
         if (collection != null) {
-            for (Object candidate : collection) {
+            for (Object candidate: collection) {
                 if (candidate == element) {
                     return true;
                 }
@@ -191,7 +194,7 @@ public abstract class CollectionUtils {
         if (isEmpty(source) || isEmpty(candidates)) {
             return false;
         }
-        for (Object candidate : candidates) {
+        for (Object candidate: candidates) {
             if (source.contains(candidate)) {
                 return true;
             }
@@ -214,9 +217,9 @@ public abstract class CollectionUtils {
         if (isEmpty(source) || isEmpty(candidates)) {
             return null;
         }
-        for (Object candidate : candidates) {
+        for (Object candidate: candidates) {
             if (source.contains(candidate)) {
-                return (E)candidate;
+                return (E) candidate;
             }
         }
         return null;
@@ -237,13 +240,13 @@ public abstract class CollectionUtils {
             return null;
         }
         T value = null;
-        for (Object element : collection) {
+        for (Object element: collection) {
             if (type == null || type.isInstance(element)) {
                 if (value != null) {
                     // More than one value found... no clear single value.
                     return null;
                 }
-                value = (T)element;
+                value = (T) element;
             }
         }
         return value;
@@ -263,7 +266,7 @@ public abstract class CollectionUtils {
         if (isEmpty(collection) || ObjectUtils.isEmpty(types)) {
             return null;
         }
-        for (Class<?> type : types) {
+        for (Class<?> type: types) {
             Object value = findValueOfType(collection, type);
             if (value != null) {
                 return value;
@@ -286,7 +289,7 @@ public abstract class CollectionUtils {
         }
         boolean hasCandidate = false;
         Object candidate = null;
-        for (Object elem : collection) {
+        for (Object elem: collection) {
             if (!hasCandidate) {
                 hasCandidate = true;
                 candidate = elem;
@@ -310,7 +313,7 @@ public abstract class CollectionUtils {
             return null;
         }
         Class<?> candidate = null;
-        for (Object val : collection) {
+        for (Object val: collection) {
             if (val != null) {
                 if (candidate == null) {
                     candidate = val.getClass();
@@ -367,9 +370,9 @@ public abstract class CollectionUtils {
     public static <K, V> MultiValueMap<K, V> unmodifiableMultiValueMap(MultiValueMap<? extends K, ? extends V> map) {
         Assert.notNull(map, "'map' must not be null");
         Map<K, List<V>> result = new LinkedHashMap<>(map.size());
-        for (Map.Entry<? extends K, ? extends List<? extends V>> entry : map.entrySet()) {
+        for (Map.Entry<? extends K, ? extends List<? extends V>> entry: map.entrySet()) {
             List<? extends V> values = Collections.unmodifiableList(entry.getValue());
-            result.put(entry.getKey(), (List<V>)values);
+            result.put(entry.getKey(), (List<V>) values);
         }
         Map<K, List<V>> unmodifiableMap = Collections.unmodifiableMap(result);
         return toMultiValueMap(unmodifiableMap);
@@ -440,7 +443,7 @@ public abstract class CollectionUtils {
 
         @Override
         public void setAll(Map<K, V> values) {
-            for (Entry<K, V> entry : values.entrySet()) {
+            for (Entry<K, V> entry: values.entrySet()) {
                 set(entry.getKey(), entry.getValue());
             }
         }
@@ -448,7 +451,7 @@ public abstract class CollectionUtils {
         @Override
         public Map<K, V> toSingleValueMap() {
             LinkedHashMap<K, V> singleValueMap = new LinkedHashMap<>(this.mMap.size());
-            for (Entry<K, List<V>> entry : mMap.entrySet()) {
+            for (Entry<K, List<V>> entry: mMap.entrySet()) {
                 singleValueMap.put(entry.getKey(), entry.getValue().get(0));
             }
             return singleValueMap;

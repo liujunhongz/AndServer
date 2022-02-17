@@ -15,6 +15,8 @@
  */
 package com.yanzhenjie.andserver.http;
 
+import android.text.TextUtils;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
@@ -24,16 +26,12 @@ import com.yanzhenjie.andserver.http.cookie.CookieProcessor;
 import com.yanzhenjie.andserver.http.cookie.StandardCookieProcessor;
 import com.yanzhenjie.andserver.http.session.Session;
 import com.yanzhenjie.andserver.http.session.SessionManager;
-import com.yanzhenjie.andserver.util.AcceptLanguage;
-import com.yanzhenjie.andserver.util.CollectionUtils;
 import com.yanzhenjie.andserver.util.HttpDateFormat;
 import com.yanzhenjie.andserver.util.IOUtils;
 import com.yanzhenjie.andserver.util.LinkedMultiValueMap;
 import com.yanzhenjie.andserver.util.MediaType;
 import com.yanzhenjie.andserver.util.MimeType;
 import com.yanzhenjie.andserver.util.MultiValueMap;
-import com.yanzhenjie.andserver.util.ObjectUtils;
-import com.yanzhenjie.andserver.util.StringUtils;
 import com.yanzhenjie.andserver.util.UrlCoder;
 
 import org.apache.commons.io.Charsets;
@@ -82,12 +80,42 @@ public class StandardRequest implements HttpRequest {
     private boolean isParsedParameter;
 
     public StandardRequest(org.apache.httpcore.HttpRequest request, HttpContext context, DispatcherHandler handler,
-        SessionManager sessionManager) {
+                           SessionManager sessionManager) {
         this.mRequest = request;
         this.mContext = context;
         this.mHandler = handler;
         this.mRequestLine = request.getRequestLine();
         this.mSessionManager = sessionManager;
+    }
+
+    @Override
+    public String getLocalName() {
+        return mRequest.getLocalName();
+    }
+
+    @Override
+    public String getLocalAddr() {
+        return mRequest.getLocalAddr();
+    }
+
+    @Override
+    public int getLocalPort() {
+        return mRequest.getLocalPort();
+    }
+
+    @Override
+    public String getRemoteAddr() {
+        return mRequest.getRemoteAddr();
+    }
+
+    @Override
+    public String getRemoteHost() {
+        return mRequest.getRemoteHost();
+    }
+
+    @Override
+    public int getRemotePort() {
+        return mRequest.getRemotePort();
     }
 
     @NonNull
@@ -99,18 +127,22 @@ public class StandardRequest implements HttpRequest {
     @NonNull
     @Override
     public String getURI() {
-        if (isParsedUri) return mUri.toString();
-
-        String uriText = mRequestLine.getUri();
-        if (StringUtils.isEmpty(uriText)) uriText = "/";
-        return uriText;
+        parseUri();
+        return mUri.toString();
     }
 
     private void parseUri() {
-        if (isParsedUri) return;
+        if (isParsedUri) {
+            return;
+        }
 
-        mUri = Uri.newBuilder(getURI()).build();
-        if (isParsedUri) return;
+        String requestLine = mRequestLine.getUri();
+        if (TextUtils.isEmpty(requestLine)) {
+            requestLine = "/";
+        }
+
+        String uri = "scheme://host:ip" + requestLine;
+        mUri = Uri.newBuilder(uri).build();
         isParsedUri = true;
     }
 
@@ -145,7 +177,7 @@ public class StandardRequest implements HttpRequest {
     public List<String> getQueries(@NonNull String name) {
         parseQuery();
         List<String> values = mQuery.get(name);
-        return ObjectUtils.isEmpty(values) ? Collections.<String>emptyList() : values;
+        return (values == null || values.isEmpty()) ? Collections.emptyList() : values;
     }
 
     @NonNull
@@ -156,7 +188,9 @@ public class StandardRequest implements HttpRequest {
     }
 
     private void parseQuery() {
-        if (isParsedQuery) return;
+        if (isParsedQuery) {
+            return;
+        }
         parseUri();
 
         mQuery = mUri.getParams();
@@ -167,12 +201,12 @@ public class StandardRequest implements HttpRequest {
     @Override
     public List<String> getHeaderNames() {
         Header[] headers = mRequest.getAllHeaders();
-        if (ObjectUtils.isEmpty(headers)) {
+        if (headers == null || headers.length == 0) {
             return Collections.emptyList();
         }
 
         List<String> nameList = new ArrayList<>();
-        for (Header header : headers) {
+        for (Header header: headers) {
             nameList.add(header.getName());
         }
         return nameList;
@@ -189,12 +223,12 @@ public class StandardRequest implements HttpRequest {
     @Override
     public List<String> getHeaders(@NonNull String name) {
         Header[] headers = mRequest.getHeaders(name);
-        if (ObjectUtils.isEmpty(headers)) {
+        if (headers == null || headers.length == 0) {
             return Collections.emptyList();
         }
 
         List<String> valueList = new ArrayList<>();
-        for (Header header : headers) {
+        for (Header header: headers) {
             valueList.add(header.getValue());
         }
         return valueList;
@@ -247,17 +281,21 @@ public class StandardRequest implements HttpRequest {
     }
 
     private void parseAccept() {
-        if (isParsedAccept) return;
+        if (isParsedAccept) {
+            return;
+        }
 
         mAccepts = new ArrayList<>();
         Header[] headers = mRequest.getHeaders(ACCEPT);
-        if (!ObjectUtils.isEmpty(headers)) {
-            for (Header header : headers) {
+        if (headers != null && headers.length > 0) {
+            for (Header header: headers) {
                 List<MediaType> mediaTypes = MediaType.parseMediaTypes(header.getValue());
                 mAccepts.addAll(mediaTypes);
             }
         }
-        if (mAccepts.isEmpty()) mAccepts.add(MediaType.ALL);
+        if (mAccepts.isEmpty()) {
+            mAccepts.add(MediaType.ALL);
+        }
 
         isParsedAccept = true;
     }
@@ -276,19 +314,23 @@ public class StandardRequest implements HttpRequest {
     }
 
     private void parseLocale() {
-        if (isParsedLocale) return;
+        if (isParsedLocale) {
+            return;
+        }
 
         mLocales = new ArrayList<>();
         Header[] headers = mRequest.getHeaders(ACCEPT_LANGUAGE);
-        if (!ObjectUtils.isEmpty(headers)) {
-            for (Header header : headers) {
+        if (headers != null && headers.length > 0) {
+            for (Header header: headers) {
                 List<AcceptLanguage> acceptLanguages = AcceptLanguage.parse(header.getValue());
-                for (AcceptLanguage acceptLanguage : acceptLanguages) {
+                for (AcceptLanguage acceptLanguage: acceptLanguages) {
                     mLocales.add(acceptLanguage.getLocale());
                 }
             }
         }
-        if (mLocales.isEmpty()) mLocales.add(Locale.getDefault());
+        if (mLocales.isEmpty()) {
+            mLocales.add(Locale.getDefault());
+        }
 
         isParsedLocale = true;
     }
@@ -297,7 +339,9 @@ public class StandardRequest implements HttpRequest {
     @Override
     public String getCookieValue(String name) {
         Cookie cookie = getCookie(name);
-        if (cookie != null) return cookie.getValue();
+        if (cookie != null) {
+            return cookie.getValue();
+        }
         return null;
     }
 
@@ -305,9 +349,11 @@ public class StandardRequest implements HttpRequest {
     @Override
     public Cookie getCookie(@NonNull String name) {
         List<Cookie> cookies = getCookies();
-        if (ObjectUtils.isEmpty(cookies)) return null;
+        if (cookies.isEmpty()) {
+            return null;
+        }
 
-        for (Cookie cookie : cookies) {
+        for (Cookie cookie: cookies) {
             if (name.equalsIgnoreCase(cookie.getName())) {
                 return cookie;
             }
@@ -324,7 +370,7 @@ public class StandardRequest implements HttpRequest {
     @Override
     public long getContentLength() {
         String contentLength = getHeader(CONTENT_LENGTH);
-        if (StringUtils.isEmpty(contentLength)) {
+        if (TextUtils.isEmpty(contentLength)) {
             return -1;
         }
         try {
@@ -338,7 +384,7 @@ public class StandardRequest implements HttpRequest {
     @Override
     public MediaType getContentType() {
         String contentType = getHeader(CONTENT_TYPE);
-        if (StringUtils.isEmpty(contentType)) {
+        if (TextUtils.isEmpty(contentType)) {
             return null;
         }
         return MediaType.valueOf(contentType);
@@ -361,7 +407,7 @@ public class StandardRequest implements HttpRequest {
     public String getParameter(@NonNull String name) {
         parseParameter();
         String value = mParameter.getFirst(name);
-        return StringUtils.isEmpty(value) ? getQuery(name) : value;
+        return TextUtils.isEmpty(value) ? getQuery(name) : value;
     }
 
     @NonNull
@@ -369,7 +415,7 @@ public class StandardRequest implements HttpRequest {
     public List<String> getParameters(@NonNull String name) {
         parseParameter();
         List<String> values = mParameter.get(name);
-        if (CollectionUtils.isEmpty(values)) {
+        if (values == null || values.isEmpty()) {
             return getQueries(name);
         }
         return values;
@@ -383,7 +429,9 @@ public class StandardRequest implements HttpRequest {
     }
 
     private void parseParameter() {
-        if (isParsedParameter) return;
+        if (isParsedParameter) {
+            return;
+        }
 
         if (!getMethod().allowBody()) {
             mParameter = new LinkedMultiValueMap<>();
@@ -410,9 +458,11 @@ public class StandardRequest implements HttpRequest {
     public RequestBody getBody() {
         if (getMethod().allowBody()) {
             if (mRequest instanceof HttpEntityEnclosingRequest) {
-                HttpEntityEnclosingRequest request = (HttpEntityEnclosingRequest)mRequest;
+                HttpEntityEnclosingRequest request = (HttpEntityEnclosingRequest) mRequest;
                 HttpEntity entity = request.getEntity();
-                if (entity == null) return null;
+                if (entity == null) {
+                    return null;
+                }
                 return new EntityToBody(entity);
             }
             return null;
@@ -438,21 +488,25 @@ public class StandardRequest implements HttpRequest {
     public Session getSession() {
         Object objSession = getAttribute(REQUEST_CREATED_SESSION);
         if (objSession instanceof Session) {
-            return (Session)objSession;
+            return (Session) objSession;
         }
 
         List<Cookie> cookies = getCookies();
-        if (CollectionUtils.isEmpty(cookies)) return null;
+        if (cookies.isEmpty()) {
+            return null;
+        }
 
         String sessionId = null;
-        for (Cookie cookie : cookies) {
+        for (Cookie cookie: cookies) {
             if (SESSION_NAME.equalsIgnoreCase(cookie.getName())) {
                 sessionId = cookie.getValue();
                 break;
             }
         }
 
-        if (StringUtils.isEmpty(sessionId)) return null;
+        if (TextUtils.isEmpty(sessionId)) {
+            return null;
+        }
 
         Session session = null;
         try {
@@ -521,7 +575,7 @@ public class StandardRequest implements HttpRequest {
             if (end > 0 && end < element.length() - 1) {
                 String key = element.substring(0, end);
                 String value = element.substring(end + 1);
-                parameters.add(key, UrlCoder.urlDecode(value, Charsets.UTF_8));
+                parameters.add(key, UrlCoder.urlDecode(value, Charsets.toCharset("utf-8")));
             }
         }
         return parameters;

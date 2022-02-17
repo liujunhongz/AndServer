@@ -16,14 +16,12 @@
 package com.yanzhenjie.andserver.processor.mapping;
 
 import com.yanzhenjie.andserver.annotation.RequestMethod;
+import com.yanzhenjie.andserver.processor.util.Utils;
 
 import org.apache.commons.lang3.ArrayUtils;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Created by Zhenjie Yan on 2018/9/8.
@@ -52,7 +50,9 @@ public class Merge implements Mapping {
 
     @Override
     public String[] path() {
-        if (mPaths != null) return mPaths;
+        if (mPaths != null) {
+            return mPaths;
+        }
 
         String[] pPaths = mParent.path();
         if (ArrayUtils.isEmpty(pPaths)) {
@@ -65,28 +65,58 @@ public class Merge implements Mapping {
 
         if (ArrayUtils.isNotEmpty(pPaths)) {
             List<String> paths = new ArrayList<>();
-            for (String pPath : pPaths) {
-                for (String cPath : cPaths) {
+            for (String pPath: pPaths) {
+                for (String cPath: cPaths) {
                     String path = pPath + cPath;
                     paths.add(path);
+
+                    if (path.endsWith("/")) {
+                        if (path.length() > 1) {
+                            String copyPath = path.substring(0, path.length() - 1);
+                            paths.add(copyPath);
+                        }
+                    } else {
+                        String copyPath = path + "/";
+                        paths.add(copyPath);
+                    }
                 }
             }
             mPaths = paths.toArray(new String[0]);
         } else {
-            mPaths = cPaths;
+            if (ArrayUtils.isNotEmpty(cPaths)) {
+                List<String> paths = new ArrayList<>();
+                for (String cPath: cPaths) {
+                    paths.add(cPath);
+
+                    if (cPath.endsWith("/")) {
+                        if (cPath.length() > 1) {
+                            String copyPath = cPath.substring(0, cPath.length() - 1);
+                            paths.add(copyPath);
+                        }
+                    } else {
+                        String copyPath = cPath + "/";
+                        paths.add(copyPath);
+                    }
+                }
+                mPaths = paths.toArray(new String[0]);
+            } else {
+                mPaths = cPaths;
+            }
         }
 
-        mPaths = mergeRepeat(mPaths, null, false);
+        mPaths = Utils.mergeRepeat(mPaths, null, false);
         return mPaths;
     }
 
     @Override
     public String[] method() {
-        if (mMethods != null) return mMethods;
+        if (mMethods != null) {
+            return mMethods;
+        }
 
         String[] pMethods = mParent.method();
         String[] cMethods = mChild.method();
-        mMethods = mergeRepeat(pMethods, cMethods, true);
+        mMethods = Utils.mergeRepeat(pMethods, cMethods, true);
         if (ArrayUtils.isEmpty(mMethods)) {
             mMethods = new String[] {RequestMethod.GET.value()};
         }
@@ -95,62 +125,54 @@ public class Merge implements Mapping {
 
     @Override
     public String[] params() {
-        if (mParams != null) return mParams;
+        if (mParams != null) {
+            return mParams;
+        }
 
         String[] pParams = mParent.params();
         String[] cParams = mChild.params();
-        mParams = mergeRepeat(pParams, cParams, false);
+        mParams = Utils.mergeRepeat(pParams, cParams, false);
         return mParams;
     }
 
     @Override
     public String[] headers() {
-        if (mHeaders != null) return mHeaders;
+        if (mHeaders != null) {
+            return mHeaders;
+        }
 
         String[] pHeaders = mParent.headers();
         String[] cHeaders = mChild.headers();
-        mHeaders = mergeRepeat(pHeaders, cHeaders, true);
+        mHeaders = Utils.mergeRepeat(pHeaders, cHeaders, true);
         return mHeaders;
     }
 
     @Override
     public String[] consumes() {
-        if (mConsumes != null) return mConsumes;
+        if (mConsumes != null) {
+            return mConsumes;
+        }
 
         String[] pConsumes = mParent.consumes();
         String[] cConsumes = mChild.consumes();
-        mConsumes = mergeRepeat(pConsumes, cConsumes, true);
+        mConsumes = Utils.mergeRepeat(pConsumes, cConsumes, true);
         return mConsumes;
     }
 
     @Override
     public String[] produces() {
-        if (mProduces != null) return mProduces;
+        if (mProduces != null) {
+            return mProduces;
+        }
 
         String[] pProduces = mParent.produces();
         String[] cProduces = mChild.produces();
-        mProduces = mergeRepeat(pProduces, cProduces, true);
+        mProduces = Utils.mergeRepeat(pProduces, cProduces, true);
         return mProduces;
     }
 
     @Override
     public boolean isRest() {
         return mParent.isRest() || mChild.isRest();
-    }
-
-    private static String[] mergeRepeat(String[] parents, String[] children, boolean ignoreCap) {
-        Map<String, String> map = new HashMap<>();
-        if (ArrayUtils.isNotEmpty(parents)) {
-            for (String parent : parents) {
-                map.put(ignoreCap ? parent.toLowerCase() : parent, parent);
-            }
-        }
-        if (ArrayUtils.isNotEmpty(children)) {
-            for (String child : children) {
-                map.put(ignoreCap ? child.toLowerCase() : child, child);
-            }
-        }
-        Collection<String> values = map.values();
-        return values.toArray(new String[0]);
     }
 }

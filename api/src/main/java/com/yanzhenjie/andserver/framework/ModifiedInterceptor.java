@@ -16,15 +16,15 @@
 package com.yanzhenjie.andserver.framework;
 
 import android.util.Log;
+
 import androidx.annotation.NonNull;
+
 import com.yanzhenjie.andserver.AndServer;
 import com.yanzhenjie.andserver.framework.handler.RequestHandler;
 import com.yanzhenjie.andserver.http.HttpMethod;
 import com.yanzhenjie.andserver.http.HttpRequest;
 import com.yanzhenjie.andserver.http.HttpResponse;
 import com.yanzhenjie.andserver.http.Modified;
-
-import java.io.IOException;
 
 /**
  * Created by Zhenjie Yan on 2018/9/14.
@@ -33,21 +33,21 @@ public class ModifiedInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean onIntercept(@NonNull HttpRequest request, @NonNull HttpResponse response,
-                               @NonNull RequestHandler handler) {
+        @NonNull RequestHandler handler) {
         // Process cache header, if supported by the handler.
         HttpMethod method = request.getMethod();
         if (method == HttpMethod.GET || method == HttpMethod.HEAD) {
             String eTag = null;
             try {
                 eTag = handler.getETag(request);
-            } catch (IOException e) {
-                Log.w(AndServer.TAG, e.getMessage());
+            } catch (Throwable e) {
+                Log.w(AndServer.TAG, e);
             }
             long lastModified = -1;
             try {
                 lastModified = handler.getLastModified(request);
-            } catch (IOException e) {
-                Log.w(AndServer.TAG, e.getMessage());
+            } catch (Throwable e) {
+                Log.w(AndServer.TAG, e);
             }
             return new Modified(request, response).process(eTag, lastModified);
         }

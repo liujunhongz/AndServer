@@ -19,13 +19,14 @@ import android.app.Service;
 import android.content.Intent;
 import android.os.IBinder;
 
+import androidx.annotation.Nullable;
+
 import com.yanzhenjie.andserver.AndServer;
 import com.yanzhenjie.andserver.Server;
 import com.yanzhenjie.andserver.sample.util.NetUtils;
 
+import java.net.InetAddress;
 import java.util.concurrent.TimeUnit;
-
-import androidx.annotation.Nullable;
 
 /**
  * Created by Zhenjie Yan on 2018/6/9.
@@ -36,15 +37,14 @@ public class CoreService extends Service {
 
     @Override
     public void onCreate() {
-        mServer = AndServer.serverBuilder(this)
-            .inetAddress(NetUtils.getLocalIPAddress())
+        mServer = AndServer.webServer(this)
             .port(8080)
             .timeout(10, TimeUnit.SECONDS)
             .listener(new Server.ServerListener() {
                 @Override
                 public void onStarted() {
-                    String hostAddress = mServer.getInetAddress().getHostAddress();
-                    ServerManager.onServerStart(CoreService.this, hostAddress);
+                    InetAddress address = NetUtils.getLocalIPAddress();
+                    ServerManager.onServerStart(CoreService.this, address.getHostAddress());
                 }
 
                 @Override
@@ -54,6 +54,7 @@ public class CoreService extends Service {
 
                 @Override
                 public void onException(Exception e) {
+                    e.printStackTrace();
                     ServerManager.onServerError(CoreService.this, e.getMessage());
                 }
             })
@@ -76,12 +77,7 @@ public class CoreService extends Service {
      * Start server.
      */
     private void startServer() {
-        if (mServer.isRunning()) {
-            String hostAddress = mServer.getInetAddress().getHostAddress();
-            ServerManager.onServerStart(CoreService.this, hostAddress);
-        } else {
-            mServer.startup();
-        }
+        mServer.startup();
     }
 
     /**

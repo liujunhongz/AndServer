@@ -15,12 +15,13 @@
  */
 package com.yanzhenjie.andserver.http.session;
 
+import android.text.TextUtils;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.yanzhenjie.andserver.util.Assert;
 import com.yanzhenjie.andserver.util.IOUtils;
-import com.yanzhenjie.andserver.util.StringUtils;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -45,14 +46,20 @@ public class StandardStore implements Store {
         Assert.notNull(session, "The session can not be null.");
 
         String id = session.getId();
-        if (StringUtils.isEmpty(id)) throw new IllegalStateException("The session id can not be empty or null.");
+        if (TextUtils.isEmpty(id)) {
+            throw new IllegalStateException("The session id can not be empty or null.");
+        }
 
         ObjectOutputStream writer = null;
         try {
-            if (!IOUtils.createFolder(mDirectory)) return false;
+            if (!IOUtils.createFolder(mDirectory)) {
+                return false;
+            }
 
             File file = new File(mDirectory, id);
-            if (!IOUtils.createNewFile(file)) return false;
+            if (!IOUtils.createNewFile(file)) {
+                return false;
+            }
 
             writer = new ObjectOutputStream(new FileOutputStream(file));
             session.writeObject(writer);
@@ -68,12 +75,16 @@ public class StandardStore implements Store {
     @Nullable
     @Override
     public StandardSession getSession(@NonNull String id) throws IOException, ClassNotFoundException {
-        if (StringUtils.isEmpty(id)) throw new IllegalArgumentException("The id can not be empty or null.");
+        if (TextUtils.isEmpty(id)) {
+            throw new IllegalArgumentException("The id can not be empty or null.");
+        }
 
         ObjectInputStream reader = null;
         try {
             File file = new File(mDirectory, id);
-            if (!file.exists() || file.isDirectory()) return null;
+            if (!file.exists() || file.isDirectory()) {
+                return null;
+            }
 
             reader = new ObjectInputStream(new FileInputStream(file));
             StandardSession session = new StandardSession();
@@ -90,7 +101,9 @@ public class StandardStore implements Store {
     @Override
     public boolean remove(@NonNull StandardSession session) {
         String id = session.getId();
-        if (StringUtils.isEmpty(id)) throw new IllegalStateException("The session id can not be empty or null.");
+        if (TextUtils.isEmpty(id)) {
+            throw new IllegalStateException("The session id can not be empty or null.");
+        }
         return IOUtils.delFileOrFolder(new File(mDirectory, session.getId()));
     }
 }

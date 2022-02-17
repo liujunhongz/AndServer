@@ -15,12 +15,12 @@
  */
 package com.yanzhenjie.andserver.error;
 
-import com.yanzhenjie.andserver.util.StatusCode;
+import com.yanzhenjie.andserver.http.StatusCode;
 
 /**
  * Created by Zhenjie Yan on 2018/9/10.
  */
-public class PathMissingException extends BasicException {
+public class PathMissingException extends HttpException {
 
     private static final String MESSAGE = "Missing param [%s] for path parameter.";
 

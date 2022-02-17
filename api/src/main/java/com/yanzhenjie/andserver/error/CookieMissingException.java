@@ -15,12 +15,12 @@
  */
 package com.yanzhenjie.andserver.error;
 
-import com.yanzhenjie.andserver.util.StatusCode;
+import com.yanzhenjie.andserver.http.StatusCode;
 
 /**
  * Created by Zhenjie Yan on 2018/9/9.
  */
-public class CookieMissingException extends BasicException {
+public class CookieMissingException extends HttpException {
 
     private static final String MESSAGE = "Missing cookie [%s] for method parameter.";
 

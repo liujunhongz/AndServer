@@ -23,7 +23,7 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Created by YanZhenjie on 2018/7/11.
+ * Created by Zhenjie Yan on 2018/7/11.
  */
 public class CompoundComparator<T> implements Comparator<T>, Serializable {
 
@@ -67,7 +67,7 @@ public class CompoundComparator<T> implements Comparator<T>, Serializable {
     @SuppressWarnings("unchecked")
     public void addComparator(Comparator<? extends T> comparator) {
         if (comparator instanceof InvertibleComparator) {
-            this.comparators.add((InvertibleComparator)comparator);
+            this.comparators.add((InvertibleComparator) comparator);
         } else {
             this.comparators.add(new InvertibleComparator(comparator));
         }
@@ -96,7 +96,7 @@ public class CompoundComparator<T> implements Comparator<T>, Serializable {
     @SuppressWarnings("unchecked")
     public void setComparator(int index, Comparator<? extends T> comparator) {
         if (comparator instanceof InvertibleComparator) {
-            this.comparators.set(index, (InvertibleComparator)comparator);
+            this.comparators.set(index, (InvertibleComparator) comparator);
         } else {
             this.comparators.set(index, new InvertibleComparator(comparator));
         }
@@ -179,7 +179,7 @@ public class CompoundComparator<T> implements Comparator<T>, Serializable {
         if (!(obj instanceof CompoundComparator)) {
             return false;
         }
-        CompoundComparator<T> other = (CompoundComparator<T>)obj;
+        CompoundComparator<T> other = (CompoundComparator<T>) obj;
         return this.comparators.equals(other.comparators);
     }
 

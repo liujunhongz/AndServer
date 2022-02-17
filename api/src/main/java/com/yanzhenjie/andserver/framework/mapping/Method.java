@@ -13,25 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.yanzhenjie.andserver.annotation;
+package com.yanzhenjie.andserver.framework.mapping;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import androidx.annotation.NonNull;
+
+import com.yanzhenjie.andserver.http.HttpMethod;
+
+import java.util.LinkedList;
+import java.util.List;
 
 /**
- * Created by Zhenjie Yan on 2018/9/17.
- *
- * @deprecated use {@link Config} instead.
+ * Created by Zhenjie Yan on 2018/6/14.
  */
-@Deprecated
-@Target({ElementType.TYPE})
-@Retention(RetentionPolicy.SOURCE)
-public @interface Website {
+public class Method {
 
-    /**
-     * Group name.
-     */
-    String value() default "default";
+    private List<HttpMethod> mRuleList = new LinkedList<>();
+
+    public Method() {
+    }
+
+    @NonNull
+    public List<HttpMethod> getRuleList() {
+        return mRuleList;
+    }
+
+    public void addRule(@NonNull String ruleText) {
+        mRuleList.add(HttpMethod.reverse(ruleText));
+    }
 }

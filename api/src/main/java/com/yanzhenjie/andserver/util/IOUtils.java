@@ -17,6 +17,7 @@ package com.yanzhenjie.andserver.util;
 
 import android.os.Build;
 import android.os.StatFs;
+import android.text.TextUtils;
 
 import com.yanzhenjie.andserver.http.RequestBody;
 
@@ -72,22 +73,22 @@ public class IOUtils {
 
     public static BufferedInputStream toBufferedInputStream(InputStream inputStream) {
         return inputStream instanceof BufferedInputStream
-            ? (BufferedInputStream)inputStream
+            ? (BufferedInputStream) inputStream
             : new BufferedInputStream(inputStream);
     }
 
     public static BufferedOutputStream toBufferedOutputStream(OutputStream outputStream) {
         return outputStream instanceof BufferedOutputStream
-            ? (BufferedOutputStream)outputStream
+            ? (BufferedOutputStream) outputStream
             : new BufferedOutputStream(outputStream);
     }
 
     public static BufferedReader toBufferedReader(Reader reader) {
-        return reader instanceof BufferedReader ? (BufferedReader)reader : new BufferedReader(reader);
+        return reader instanceof BufferedReader ? (BufferedReader) reader : new BufferedReader(reader);
     }
 
     public static BufferedWriter toBufferedWriter(Writer writer) {
-        return writer instanceof BufferedWriter ? (BufferedWriter)writer : new BufferedWriter(writer);
+        return writer instanceof BufferedWriter ? (BufferedWriter) writer : new BufferedWriter(writer);
     }
 
     public static InputStream toInputStream(CharSequence input) {
@@ -154,7 +155,9 @@ public class IOUtils {
     }
 
     public static byte[] toByteArray(CharSequence input) {
-        if (input == null) return new byte[0];
+        if (input == null) {
+            return new byte[0];
+        }
         return input.toString().getBytes();
     }
 
@@ -178,9 +181,13 @@ public class IOUtils {
     }
 
     public static byte[] toByteArray(InputStream input, int size) throws IOException {
-        if (size < 0) throw new IllegalArgumentException("Size must be equal or greater than zero: " + size);
+        if (size < 0) {
+            throw new IllegalArgumentException("Size must be equal or greater than zero: " + size);
+        }
 
-        if (size == 0) return new byte[0];
+        if (size == 0) {
+            return new byte[0];
+        }
 
         byte[] data = new byte[size];
         int offset = 0;
@@ -403,7 +410,9 @@ public class IOUtils {
         int ch = input1.read();
         while (-1 != ch) {
             int ch2 = input2.read();
-            if (ch != ch2) return false;
+            if (ch != ch2) {
+                return false;
+            }
             ch = input1.read();
         }
         int ch2 = input2.read();
@@ -417,7 +426,9 @@ public class IOUtils {
         int ch = input1.read();
         while (-1 != ch) {
             int ch2 = input2.read();
-            if (ch != ch2) return false;
+            if (ch != ch2) {
+                return false;
+            }
             ch = input1.read();
         }
 
@@ -455,7 +466,7 @@ public class IOUtils {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
             return stat.getBlockSizeLong() * stat.getAvailableBlocksLong();
         } else {
-            return (long)stat.getBlockSize() * (long)stat.getAvailableBlocks();
+            return (long) stat.getBlockSize() * (long) stat.getAvailableBlocks();
         }
     }
 
@@ -489,7 +500,7 @@ public class IOUtils {
      * @return True: success, or false: failure.
      */
     public static boolean createFolder(String folderPath) {
-        if (!StringUtils.isEmpty(folderPath)) {
+        if (!TextUtils.isEmpty(folderPath)) {
             File folder = new File(folderPath);
             return createFolder(folder);
         }
@@ -505,7 +516,9 @@ public class IOUtils {
      */
     public static boolean createFolder(File targetFolder) {
         if (targetFolder.exists()) {
-            if (targetFolder.isDirectory()) return true;
+            if (targetFolder.isDirectory()) {
+                return true;
+            }
             //noinspection ResultOfMethodCallIgnored
             targetFolder.delete();
         }
@@ -542,7 +555,7 @@ public class IOUtils {
      * @return True: success, or false: failure.
      */
     public static boolean createFile(String filePath) {
-        if (!StringUtils.isEmpty(filePath)) {
+        if (!TextUtils.isEmpty(filePath)) {
             File file = new File(filePath);
             return createFile(file);
         }
@@ -558,7 +571,9 @@ public class IOUtils {
      */
     public static boolean createFile(File targetFile) {
         if (targetFile.exists()) {
-            if (targetFile.isFile()) return true;
+            if (targetFile.isFile()) {
+                return true;
+            }
             delFileOrFolder(targetFile);
         }
         try {
@@ -576,7 +591,7 @@ public class IOUtils {
      * @return True: success, or false: failure.
      */
     public static boolean createNewFile(String filePath) {
-        if (!StringUtils.isEmpty(filePath)) {
+        if (!TextUtils.isEmpty(filePath)) {
             File file = new File(filePath);
             return createNewFile(file);
         }
@@ -591,7 +606,9 @@ public class IOUtils {
      * @return True: success, or false: failure.
      */
     public static boolean createNewFile(File targetFile) {
-        if (targetFile.exists()) delFileOrFolder(targetFile);
+        if (targetFile.exists()) {
+            delFileOrFolder(targetFile);
+        }
         try {
             return targetFile.createNewFile();
         } catch (IOException e) {
@@ -629,7 +646,7 @@ public class IOUtils {
         } else if (file.isDirectory()) {
             File[] files = file.listFiles();
             if (files != null) {
-                for (File sonFile : files) {
+                for (File sonFile: files) {
                     delFileOrFolder(sonFile);
                 }
             }

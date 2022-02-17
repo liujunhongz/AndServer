@@ -24,11 +24,9 @@ public interface Constants {
 
     String CONTEXT_TYPE = "android.content.Context";
     String LOG_TYPE = "android.util.Log";
+    String TEXT_UTILS_TYPE = "android.text.TextUtils";
     String PACKAGE_NAME = "com.yanzhenjie.andserver";
-    String REGISTER_PACKAGE = PACKAGE_NAME + ".register";
     String ANDSERVER_TYPE = PACKAGE_NAME + ".AndServer";
-    String STRING_UTIL_TYPE = PACKAGE_NAME + ".util.StringUtils";
-    String COLLECTION_UTIL_TYPE = PACKAGE_NAME + ".util.CollectionUtils";
     String TYPE_WRAPPER_TYPE = PACKAGE_NAME + ".util.TypeWrapper";
     String MEDIA_TYPE = PACKAGE_NAME + ".util.MediaType";
     String ON_REGISTER_TYPE = PACKAGE_NAME + ".register.OnRegister";
@@ -59,14 +57,16 @@ public interface Constants {
     String MULTIPART_REQUEST_TYPE = PACKAGE_NAME + ".http.multipart.MultipartRequest";
     String RESPONSE_TYPE = PACKAGE_NAME + ".http.HttpResponse";
     String HTTP_METHOD_TYPE = PACKAGE_NAME + ".http.HttpMethod";
+    String HTTP_HEADERS_TYPE = PACKAGE_NAME + ".http.HttpHeaders";
     String SESSION_TYPE = PACKAGE_NAME + ".http.session.Session";
     String REQUEST_BODY_TYPE = PACKAGE_NAME + ".http.RequestBody";
     String MULTIPART_FILE_TYPE = PACKAGE_NAME + ".http.multipart.MultipartFile";
 
-    String ADDITION_TYPE = PACKAGE_NAME + ".mapping.Addition";
-    String MAPPING_TYPE = PACKAGE_NAME + ".mapping.Mapping";
-    String MIME_MAPPING_TYPE = PACKAGE_NAME + ".mapping.Mime";
-    String METHOD_MAPPING_TYPE = PACKAGE_NAME + ".mapping.Method";
-    String PAIR_MAPPING_TYPE = PACKAGE_NAME + ".mapping.Pair";
-    String PATH_MAPPING_TYPE = PACKAGE_NAME + ".mapping.Path";
+    String ADDITION_TYPE = PACKAGE_NAME + ".framework.mapping.Addition";
+    String CROSS_ORIGIN_TYPE = PACKAGE_NAME + ".framework.cross.CrossOrigin";
+    String MAPPING_TYPE = PACKAGE_NAME + ".framework.mapping.Mapping";
+    String MIME_MAPPING_TYPE = PACKAGE_NAME + ".framework.mapping.Mime";
+    String METHOD_MAPPING_TYPE = PACKAGE_NAME + ".framework.mapping.Method";
+    String PAIR_MAPPING_TYPE = PACKAGE_NAME + ".framework.mapping.Pair";
+    String PATH_MAPPING_TYPE = PACKAGE_NAME + ".framework.mapping.Path";
 }

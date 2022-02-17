@@ -15,23 +15,24 @@
  */
 package com.yanzhenjie.andserver.framework.view;
 
+import android.text.TextUtils;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 import com.yanzhenjie.andserver.error.NotFoundException;
 import com.yanzhenjie.andserver.error.ServerInternalException;
 import com.yanzhenjie.andserver.framework.MessageConverter;
 import com.yanzhenjie.andserver.framework.body.StringBody;
 import com.yanzhenjie.andserver.http.HttpContext;
+import com.yanzhenjie.andserver.http.HttpHeaders;
 import com.yanzhenjie.andserver.http.HttpRequest;
 import com.yanzhenjie.andserver.http.HttpResponse;
 import com.yanzhenjie.andserver.http.RequestDispatcher;
 import com.yanzhenjie.andserver.http.ResponseBody;
-import com.yanzhenjie.andserver.util.HttpHeaders;
+import com.yanzhenjie.andserver.http.StatusCode;
 import com.yanzhenjie.andserver.util.MediaType;
 import com.yanzhenjie.andserver.util.Patterns;
-import com.yanzhenjie.andserver.util.StatusCode;
-import com.yanzhenjie.andserver.util.StringUtils;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 
 /**
  * Created by Zhenjie Yan on 2018/8/31.
@@ -55,10 +56,11 @@ public class ViewResolver implements Patterns, StatusCode, HttpHeaders {
      * @param response current response.
      */
     public void resolve(@Nullable View view, @NonNull HttpRequest request, @NonNull HttpResponse response) {
-        if (view == null) return;
+        if (view == null) {
+            return;
+        }
 
         Object output = view.output();
-        if (output == null) return;
 
         if (view.rest()) {
             resolveRest(output, request, response);
@@ -69,9 +71,11 @@ public class ViewResolver implements Patterns, StatusCode, HttpHeaders {
 
     private void resolveRest(Object output, @NonNull HttpRequest request, @NonNull HttpResponse response) {
         if (output instanceof ResponseBody) {
-            response.setBody((ResponseBody)output);
+            response.setBody((ResponseBody) output);
         } else if (mConverter != null) {
             response.setBody(mConverter.convert(output, obtainProduce(request)));
+        } else if (output == null) {
+            response.setBody(new StringBody(""));
         } else if (output instanceof String) {
             response.setBody(new StringBody(output.toString(), obtainProduce(request)));
         } else {
@@ -83,7 +87,7 @@ public class ViewResolver implements Patterns, StatusCode, HttpHeaders {
     private MediaType obtainProduce(@NonNull HttpRequest request) {
         final Object mtAttribute = request.getAttribute(HttpContext.RESPONSE_PRODUCE_TYPE);
         if (mtAttribute instanceof MediaType) {
-            return (MediaType)mtAttribute;
+            return (MediaType) mtAttribute;
         }
         return null;
     }
@@ -91,7 +95,9 @@ public class ViewResolver implements Patterns, StatusCode, HttpHeaders {
     private void resolvePath(Object output, @NonNull HttpRequest request, @NonNull HttpResponse response) {
         if (output instanceof CharSequence) {
             final String action = output.toString();
-            if (StringUtils.isEmpty(action)) return;
+            if (TextUtils.isEmpty(action)) {
+                return;
+            }
 
             // "redirect:(.)*"
             if (action.matches(REDIRECT)) {

@@ -15,7 +15,10 @@
  */
 package com.yanzhenjie.andserver.http.multipart;
 
+import android.text.TextUtils;
 import android.util.Log;
+
+import androidx.annotation.NonNull;
 
 import com.yanzhenjie.andserver.AndServer;
 import com.yanzhenjie.andserver.error.MaxUploadSizeExceededException;
@@ -26,7 +29,6 @@ import com.yanzhenjie.andserver.util.Assert;
 import com.yanzhenjie.andserver.util.LinkedMultiValueMap;
 import com.yanzhenjie.andserver.util.MediaType;
 import com.yanzhenjie.andserver.util.MultiValueMap;
-import com.yanzhenjie.andserver.util.StringUtils;
 
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileUpload;
@@ -42,8 +44,6 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-
-import androidx.annotation.NonNull;
 
 /**
  * Created by Zhenjie Yan on 2018/8/9.
@@ -84,7 +84,9 @@ public class StandardMultipartResolver implements MultipartResolver {
 
     @Override
     public boolean isMultipart(HttpRequest request) {
-        if (!request.getMethod().allowBody()) return false;
+        if (!request.getMethod().allowBody()) {
+            return false;
+        }
 
         RequestBody body = request.getBody();
         return body != null && FileUploadBase.isMultipartContent(new BodyContext(body));
@@ -92,7 +94,9 @@ public class StandardMultipartResolver implements MultipartResolver {
 
     @Override
     public MultipartRequest resolveMultipart(HttpRequest request) throws MultipartException {
-        if (request instanceof MultipartRequest) return (MultipartRequest)request;
+        if (request instanceof MultipartRequest) {
+            return (MultipartRequest) request;
+        }
 
         MultipartParsingResult result = parseRequest(request);
         return new StandardMultipartRequest(request, result.getMultipartFiles(), result.getMultipartParameters(),
@@ -104,10 +108,10 @@ public class StandardMultipartResolver implements MultipartResolver {
         if (request != null) {
             try {
                 MultiValueMap<String, MultipartFile> multipartFiles = request.getMultiFileMap();
-                for (List<MultipartFile> files : multipartFiles.values()) {
-                    for (MultipartFile file : files) {
+                for (List<MultipartFile> files: multipartFiles.values()) {
+                    for (MultipartFile file: files) {
                         if (file instanceof StandardMultipartFile) {
-                            StandardMultipartFile cmf = (StandardMultipartFile)file;
+                            StandardMultipartFile cmf = (StandardMultipartFile) file;
                             cmf.getFileItem().delete();
                         }
                     }
@@ -157,9 +161,11 @@ public class StandardMultipartResolver implements MultipartResolver {
     @NonNull
     private String determineEncoding(HttpRequest request) {
         MediaType mimeType = request.getContentType();
-        if (mimeType == null) return Charsets.UTF_8.name();
+        if (mimeType == null) {
+            return Charsets.toCharset("utf-8").name();
+        }
         Charset charset = mimeType.getCharset();
-        return charset == null ? Charsets.UTF_8.name() : charset.name();
+        return charset == null ? Charsets.toCharset("utf-8").name() : charset.name();
     }
 
     /**
@@ -200,7 +206,7 @@ public class StandardMultipartResolver implements MultipartResolver {
         Map<String, String> multipartContentTypes = new HashMap<>();
 
         // Extract multipart files and multipart parameters.
-        for (FileItem fileItem : fileItems) {
+        for (FileItem fileItem: fileItems) {
             if (fileItem.isFormField()) {
                 String value;
                 String partEncoding = determineEncoding(fileItem.getContentType(), encoding);
@@ -244,7 +250,7 @@ public class StandardMultipartResolver implements MultipartResolver {
     }
 
     private String determineEncoding(String contentTypeHeader, String defaultEncoding) {
-        if (!StringUtils.hasText(contentTypeHeader)) {
+        if (TextUtils.isEmpty(contentTypeHeader)) {
             return defaultEncoding;
         }
         MediaType contentType = MediaType.parseMediaType(contentTypeHeader);
@@ -262,7 +268,8 @@ public class StandardMultipartResolver implements MultipartResolver {
         private final Map<String, String> multipartContentTypes;
 
         public MultipartParsingResult(MultiValueMap<String, MultipartFile> mpFiles,
-            MultiValueMap<String, String> mpParams, Map<String, String> mpParamContentTypes) {
+                                      MultiValueMap<String, String> mpParams,
+                                      Map<String, String> mpParamContentTypes) {
             this.multipartFiles = mpFiles;
             this.multipartParameters = mpParams;
             this.multipartContentTypes = mpParamContentTypes;
